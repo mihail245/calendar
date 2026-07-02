@@ -6,25 +6,32 @@
     <title>Умный календарь смен</title>
     <style>
         * { box-sizing: border-box; font-family: system-ui, sans-serif; }
-        body { background: #f4f7fc; display: flex; justify-content: center; padding: 20px; }
-        .app { max-width: 700px; width: 100%; background: white; border-radius: 24px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
-        h1 { font-size: 22px; margin: 0 0 8px; display: flex; justify-content: space-between; align-items: center; }
-        .sub { color: #555; font-size: 14px; margin-bottom: 16px; }
-        .controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; background: #f0f4fe; padding: 16px; border-radius: 16px; }
-        .controls label { display: flex; align-items: center; gap: 6px; font-weight: 500; }
+        body { background: #f4f7fc; display: flex; justify-content: center; padding: 20px; margin: 0; }
+        .app { max-width: 720px; width: 100%; background: white; border-radius: 24px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 4px; }
+        h1 { font-size: 22px; margin: 0; }
+        .month-nav { display: flex; align-items: center; gap: 12px; }
+        .month-nav button { background: #eef2f7; border: none; border-radius: 30px; padding: 6px 16px; font-size: 18px; cursor: pointer; font-weight: 600; }
+        .month-nav button:hover { background: #dce3ed; }
+        .month-nav .month-label { font-weight: 600; font-size: 18px; min-width: 140px; text-align: center; }
+        .sub { color: #555; font-size: 14px; margin-bottom: 16px; display: flex; gap: 16px; flex-wrap: wrap; }
+        .controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; background: #f0f4fe; padding: 16px; border-radius: 16px; align-items: center; }
+        .controls label { display: flex; align-items: center; gap: 6px; font-weight: 500; font-size: 14px; }
         .controls input[type="date"] { padding: 6px 10px; border-radius: 8px; border: 1px solid #ccc; }
         .controls select { padding: 6px 10px; border-radius: 8px; border: 1px solid #ccc; background: white; }
         .btn { background: #2a6df4; color: white; border: none; padding: 6px 16px; border-radius: 8px; cursor: pointer; font-weight: 500; }
         .btn:hover { background: #1a4fbf; }
         .btn-reset { background: #e0e0e0; color: #333; }
         .btn-reset:hover { background: #c0c0c0; }
-
+        .btn-today { background: #34a853; }
+        .btn-today:hover { background: #2d8e47; }
         .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 8px; }
         .day-name { font-weight: 600; color: #555; text-align: center; font-size: 13px; padding: 8px 0; background: #f0f0f0; border-radius: 8px; }
         .day-cell { background: #fafafa; border-radius: 10px; padding: 8px 4px; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; border: 1px solid #eee; transition: 0.1s; cursor: pointer; }
         .day-cell:hover { background: #eef4ff; border-color: #2a6df4; }
         .day-cell.weekend { background: #fce9e9; color: #a33; }
         .day-cell.weekend .emp { background: #f5d0d0; }
+        .day-cell.empty { background: transparent; border: none; cursor: default; }
         .day-cell .num { font-size: 18px; font-weight: 600; }
         .day-cell .emp { font-size: 13px; margin-top: 4px; padding: 2px 6px; border-radius: 12px; background: #e3ecfa; display: inline-block; }
         .day-cell .emp.male { background: #d4e2fc; color: #0a2f6f; }
@@ -36,15 +43,24 @@
         .male::before { color: #2a6df4; }
         .female::before { color: #d45a7a; }
         .note { font-size: 13px; color: #666; background: #f4f4f4; padding: 8px 16px; border-radius: 30px; }
+        .stats { font-size: 14px; color: #444; background: #f8faff; padding: 4px 14px; border-radius: 30px; }
     </style>
 </head>
 <body>
 <div class="app" id="app">
-    <h1>
-        📅 График смен
-        <button class="btn btn-reset" @click="resetCalendar">Сбросить</button>
-    </h1>
-    <div class="sub">👫 2 сотрудника: Пацан / Девка · Выходные (Сб, Вс) пропускаются</div>
+    <div class="header">
+        <h1>📅 График смен</h1>
+        <div class="month-nav">
+            <button @click="prevMonth">◀</button>
+            <span class="month-label">{{ monthLabel }}</span>
+            <button @click="nextMonth">▶</button>
+            <button class="btn btn-today" @click="goToday">Сегодня</button>
+        </div>
+    </div>
+    <div class="sub">
+        <span>👫 Пацан / Девка · Выходные (Сб, Вс) пропускаются</span>
+        <span class="stats">📌 {{ totalWorkDays }} рабочих дней</span>
+    </div>
 
     <!-- Блок ручного ввода -->
     <div class="controls">
@@ -56,20 +72,20 @@
             </select>
         </label>
         <button class="btn" @click="setManual">➕ Запомнить</button>
-        <span style="font-size:13px; color:#555; margin-left:auto;">(календарь перестроится)</span>
+        <button class="btn btn-reset" @click="resetCalendar">✖ Сбросить</button>
     </div>
 
     <!-- Сетка календаря -->
-    <div class="calendar" v-if="days.length">
+    <div class="calendar">
         <div class="day-name" v-for="n in ['Пн','Вт','Ср','Чт','Пт','Сб','Вс']" :key="n">{{ n }}</div>
         <div class="day-cell" v-for="(d, idx) in days" :key="idx"
-             :class="{ weekend: d.isWeekend }"
+             :class="{ weekend: d.isWeekend, empty: !d.date }"
              @click="openSet(d)">
-            <div class="num">{{ d.day }}</div>
+            <div class="num">{{ d.day || '' }}</div>
             <div class="emp" v-if="d.employee" :class="d.employee === 'Пацан' ? 'male' : 'female'">
                 {{ d.employee }}
             </div>
-            <div class="emp holiday" v-else-if="!d.isWeekend">⛔ нет</div>
+            <div class="emp holiday" v-else-if="d.date && !d.isWeekend">⛔</div>
         </div>
     </div>
 
@@ -88,111 +104,93 @@
 new Vue({
     el: '#app',
     data: {
-        // Храним зафиксированные вручную записи { date: '2026-07-01', employee: 'Пацан' }
         manualEntries: [],
-        // Массив дней для отображения (месяц от today)
         days: [],
-        today: ''
+        today: '',
+        currentYear: 2026,
+        currentMonth: 6, // 0-индекс, июль = 6
     },
     mounted() {
-        // Сегодняшняя дата для input
         const now = new Date();
         this.today = now.toISOString().split('T')[0];
-        // Загружаем сохранённые записи из localStorage
+        this.currentYear = now.getFullYear();
+        this.currentMonth = now.getMonth();
         const saved = localStorage.getItem('calendarManual');
         if (saved) this.manualEntries = JSON.parse(saved);
         this.buildCalendar();
     },
+    computed: {
+        monthLabel() {
+            const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+            return `${months[this.currentMonth]} ${this.currentYear}`;
+        },
+        totalWorkDays() {
+            return this.days.filter(d => d.date && !d.isWeekend).length;
+        }
+    },
     methods: {
         buildCalendar() {
-            // Берём текущую дату, строим месяц
-            const now = new Date(this.today);
-            const year = now.getFullYear();
-            const month = now.getMonth();
+            const year = this.currentYear;
+            const month = this.currentMonth;
             const firstDay = new Date(year, month, 1);
             const lastDay = new Date(year, month + 1, 0);
-            const startOffset = (firstDay.getDay() + 6) % 7; // Пн=0
+            const startOffset = (firstDay.getDay() + 6) % 7;
 
             const daysArr = [];
             for (let i = 0; i < startOffset; i++) {
-                daysArr.push({ day: '', employee: null, isWeekend: false, date: null });
+                daysArr.push({ day: '', date: null, employee: null, isWeekend: false });
             }
             for (let d = 1; d <= lastDay.getDate(); d++) {
                 const dateObj = new Date(year, month, d);
-                const dayOfWeek = dateObj.getDay(); // 0=Вс, 6=Сб
+                const dayOfWeek = dateObj.getDay();
                 const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
                 const dateStr = dateObj.toISOString().split('T')[0];
-                // Поиск ручной записи
                 const manual = this.manualEntries.find(e => e.date === dateStr);
-                let employee = manual ? manual.employee : null;
                 daysArr.push({
                     day: d,
                     date: dateStr,
-                    employee: employee,
+                    employee: manual ? manual.employee : null,
                     isWeekend: isWeekend,
                     manual: !!manual
                 });
             }
-            // Дозаполняем пустые дни (кроме выходных) через автоподбор
             this.autoFill(daysArr);
             this.days = daysArr;
         },
 
         autoFill(daysArr) {
-            // Собираем все дни, где есть сотрудник (включая ручные)
             const filled = daysArr.filter(d => d.date && d.employee && !d.isWeekend);
             if (filled.length === 0) {
-                // Если ни одного назначения — ставим Пацана на первый рабочий день
                 const firstWork = daysArr.find(d => d.date && !d.isWeekend);
                 if (firstWork) firstWork.employee = 'Пацан';
                 return;
             }
-            // Сортируем по дате
             filled.sort((a,b) => a.date.localeCompare(b.date));
 
-            // Проходим по всем дням и назначаем чередование, не трогая ручные
             let lastEmployee = null;
-            let lastDate = null;
             for (let i = 0; i < daysArr.length; i++) {
                 const d = daysArr[i];
                 if (!d.date || d.isWeekend) continue;
-                // Если есть ручная запись — обновляем lastEmployee
                 if (d.manual && d.employee) {
                     lastEmployee = d.employee;
-                    lastDate = d.date;
                     continue;
                 }
-                // Если уже есть сотрудник (не ручной) — пропускаем
                 if (d.employee) {
                     lastEmployee = d.employee;
-                    lastDate = d.date;
                     continue;
                 }
-                // Автоподбор: чередуем
-                if (lastEmployee === 'Пацан') {
-                    d.employee = 'Девка';
-                } else if (lastEmployee === 'Девка') {
-                    d.employee = 'Пацан';
-                } else {
-                    d.employee = 'Пацан'; // fallback
-                }
+                d.employee = (lastEmployee === 'Пацан') ? 'Девка' : 'Пацан';
                 lastEmployee = d.employee;
-                lastDate = d.date;
             }
 
-            // Обратный проход (для дней до первой ручной записи)
-            // Находим первую ручную запись и идём назад, чередуя
-            const firstManualIndex = daysArr.findIndex(d => d.manual && d.date);
-            if (firstManualIndex > 0) {
-                let prevEmp = daysArr[firstManualIndex].employee;
-                for (let i = firstManualIndex - 1; i >= 0; i--) {
+            // Обратный проход для дней до первой ручной
+            const firstManualIdx = daysArr.findIndex(d => d.manual && d.date);
+            if (firstManualIdx > 0) {
+                let prevEmp = daysArr[firstManualIdx].employee;
+                for (let i = firstManualIdx - 1; i >= 0; i--) {
                     const d = daysArr[i];
                     if (!d.date || d.isWeekend || d.manual) continue;
-                    if (prevEmp === 'Пацан') {
-                        d.employee = 'Девка';
-                    } else {
-                        d.employee = 'Пацан';
-                    }
+                    d.employee = (prevEmp === 'Пацан') ? 'Девка' : 'Пацан';
                     prevEmp = d.employee;
                 }
             }
@@ -202,10 +200,8 @@ new Vue({
             const date = document.getElementById('inputDate').value;
             const emp = document.getElementById('inputEmployee').value;
             if (!date) return alert('Выберите дату');
-            // Удаляем старую запись для этой даты, если была
             this.manualEntries = this.manualEntries.filter(e => e.date !== date);
             this.manualEntries.push({ date, employee: emp });
-            // Сохраняем
             localStorage.setItem('calendarManual', JSON.stringify(this.manualEntries));
             this.buildCalendar();
         },
@@ -215,7 +211,6 @@ new Vue({
             const emp = prompt(`Кто работал ${d.date}? (Пацан / Девка / отмена)`, d.employee || '');
             if (emp === null) return;
             if (emp.trim() === '') {
-                // Удаляем ручную запись
                 this.manualEntries = this.manualEntries.filter(e => e.date !== d.date);
             } else {
                 const val = emp.trim();
@@ -235,10 +230,24 @@ new Vue({
             this.manualEntries = [];
             localStorage.removeItem('calendarManual');
             this.buildCalendar();
+        },
+
+        prevMonth() {
+            if (this.currentMonth === 0) { this.currentMonth = 11; this.currentYear--; }
+            else { this.currentMonth--; }
+            this.buildCalendar();
+        },
+        nextMonth() {
+            if (this.currentMonth === 11) { this.currentMonth = 0; this.currentYear++; }
+            else { this.currentMonth++; }
+            this.buildCalendar();
+        },
+        goToday() {
+            const now = new Date();
+            this.currentYear = now.getFullYear();
+            this.currentMonth = now.getMonth();
+            this.buildCalendar();
         }
-    },
-    watch: {
-        today() { this.buildCalendar(); }
     }
 });
 </script>
