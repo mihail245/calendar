@@ -27,12 +27,10 @@
         .btn-today:hover { background: #2d8e47; }
         .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 8px; }
         .day-name { font-weight: 600; color: #555; text-align: center; font-size: 13px; padding: 8px 0; background: #f0f0f0; border-radius: 8px; }
-        .day-name.weekend { color: #e53935; }
         .day-cell { background: #fafafa; border-radius: 10px; padding: 8px 4px; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; border: 1px solid #eee; transition: 0.1s; cursor: pointer; }
         .day-cell:hover { background: #eef4ff; border-color: #2a6df4; }
         .day-cell.empty { background: transparent; border: none; cursor: default; }
         .day-cell .num { font-size: 18px; font-weight: 600; }
-        .day-cell .num.weekend { color: #e53935; }
         .day-cell .emp { font-size: 13px; margin-top: 4px; padding: 2px 6px; border-radius: 12px; background: #e3ecfa; display: inline-block; }
         .day-cell .emp.male { background: #d4e2fc; color: #0a2f6f; }
         .day-cell .emp.female { background: #fce0e8; color: #8f2a4a; }
@@ -43,6 +41,7 @@
         .female::before { color: #d45a7a; }
         .note { font-size: 13px; color: #666; background: #f4f4f4; padding: 8px 16px; border-radius: 30px; }
         .stats { font-size: 14px; color: #444; background: #f8faff; padding: 4px 14px; border-radius: 30px; }
+        .pattern-hint { font-size: 13px; color: #2a6df4; background: #e8edfe; padding: 2px 14px; border-radius: 30px; }
     </style>
 </head>
 <body>
@@ -57,8 +56,9 @@
         </div>
     </div>
     <div class="sub">
-        <span>👫 Пацан / Девка · График 2/2 (без выходных)</span>
-        <span class="stats">📌 {{ totalWorkDays }} дней в месяце</span>
+        <span>👫 Пацан / Девка · График 2/2</span>
+        <span class="pattern-hint">🧑🧑 👩👩 🧑🧑 👩👩</span>
+        <span class="stats">📌 {{ totalWorkDays }} дней</span>
     </div>
 
     <!-- Блок ручного ввода -->
@@ -90,8 +90,8 @@
 
     <div class="footer">
         <div class="legend">
-            <span class="male">Пацан</span>
-            <span class="female">Девка</span>
+            <span class="male">🧑 Пацан</span>
+            <span class="female">👩 Девка</span>
         </div>
         <div class="note">⚡ Клик по дню → выбрать кто работал</div>
     </div>
@@ -154,102 +154,113 @@ new Vue({
         },
 
         autoFill(daysArr) {
-            // Собираем все дни с сотрудниками (ручные + авто)
-            const filled = daysArr.filter(d => d.date && d.employee);
-            
-            if (filled.length === 0) {
-                // Если нет ни одной записи — начинаем с Пацана
-                const first = daysArr.find(d => d.date);
-                if (first) first.employee = 'Пацан';
-                return;
-            }
-
-            // Сортируем по дате
-            filled.sort((a,b) => a.date.localeCompare(b.date));
-
-            // Получаем все дни с датами
             const allDays = daysArr.filter(d => d.date);
-            
-            // Если есть хотя бы одна ручная запись — строим от неё
-            // Ищем первую ручную запись
-            const firstManualIdx = allDays.findIndex(d => d.manual && d.date);
-            
-            if (firstManualIdx === -1) {
-                // Нет ручных записей — просто чередуем 2/2 от первого дня
-                let counter = 0;
+            if (allDays.length === 0) return;
+
+            // Проверяем, есть ли ручные записи
+            const hasManual = allDays.some(d => d.manual);
+
+            if (!hasManual) {
+                // Нет ручных — начинаем с Пацана и идём по схеме: 2 Пацана, 2 Девки
                 for (let i = 0; i < allDays.length; i++) {
-                    const d = allDays[i];
-                    if (i === 0) {
-                        d.employee = 'Пацан';
-                    } else {
-                        // Меняем каждые 2 дня
-                        if (i % 4 < 2) {
-                            d.employee = 'Пацан';
-                        } else {
-                            d.employee = 'Девка';
-                        }
-                    }
+                    const cycle = Math.floor(i / 2) % 2; // 0 = Пацан, 1 = Девка
+                    allDays[i].employee = cycle === 0 ? 'Пацан' : 'Девка';
                 }
                 return;
             }
 
-            // Есть ручные записи — строим от них
-            // Идём вперёд от первой ручной
-            for (let i = firstManualIdx; i < allDays.length; i++) {
-                const d = allDays[i];
-                if (d.manual) continue;
-                // Смотрим предыдущий день
-                const prev = allDays[i - 1];
-                if (!prev) continue;
-                // Считаем сколько подряд работает prev.employee
-                let count = 1;
-                let j = i - 1;
-                while (j >= 0 && allDays[j].employee === prev.employee) {
-                    count++;
-                    j--;
-                }
-                if (count >= 2) {
-                    d.employee = (prev.employee === 'Пацан') ? 'Девка' : 'Пацан';
-                } else {
-                    d.employee = prev.employee;
-                }
-            }
-
-            // Идём назад от первой ручной
-            for (let i = firstManualIdx - 1; i >= 0; i--) {
-                const d = allDays[i];
-                if (d.manual) continue;
-                const next = allDays[i + 1];
-                if (!next) continue;
-                // Считаем сколько подряд работает next.employee вперёд
-                let count = 1;
-                let j = i + 1;
-                while (j < allDays.length && allDays[j].employee === next.employee) {
-                    count++;
-                    j++;
-                }
-                if (count >= 2) {
-                    d.employee = (next.employee === 'Пацан') ? 'Девка' : 'Пацан';
-                } else {
-                    d.employee = next.employee;
-                }
-            }
-
-            // Если всё ещё есть пустые дни (крайние случаи) — заполняем по правилу 2/2
+            // Есть ручные — строим от них
+            // Сначала проставляем все ручные
+            // Идём вперёд
             for (let i = 0; i < allDays.length; i++) {
                 const d = allDays[i];
-                if (d.employee) continue;
-                if (i === 0) {
-                    d.employee = 'Пацан';
-                } else {
-                    const prev = allDays[i - 1];
-                    let count = 1;
-                    let j = i - 1;
-                    while (j >= 0 && allDays[j].employee === prev.employee) {
-                        count++;
-                        j--;
+                if (d.manual) continue;
+                
+                // Ищем ближайшую ручную запись слева
+                let leftManual = null;
+                for (let j = i - 1; j >= 0; j--) {
+                    if (allDays[j].manual) {
+                        leftManual = allDays[j];
+                        break;
                     }
-                    d.employee = (count >= 2) ? (prev.employee === 'Пацан' ? 'Девка' : 'Пацан') : prev.employee;
+                }
+                
+                // Ищем ближайшую ручную запись справа
+                let rightManual = null;
+                for (let j = i + 1; j < allDays.length; j++) {
+                    if (allDays[j].manual) {
+                        rightManual = allDays[j];
+                        break;
+                    }
+                }
+
+                if (leftManual && rightManual) {
+                    // Между двумя ручными — вычисляем по правилу 2/2
+                    const leftIdx = allDays.indexOf(leftManual);
+                    const rightIdx = allDays.indexOf(rightManual);
+                    const distance = rightIdx - leftIdx;
+                    
+                    // Смотрим, кто должен быть на позиции i
+                    let emp = leftManual.employee;
+                    let empCount = 0;
+                    // Считаем сколько раз подряд встречается emp от leftManual до i
+                    for (let k = leftIdx; k <= i; k++) {
+                        if (allDays[k].employee === emp) {
+                            empCount++;
+                        } else {
+                            emp = allDays[k].employee;
+                            empCount = 1;
+                        }
+                    }
+                    
+                    // Если empCount >= 2, меняем
+                    if (empCount >= 2) {
+                        d.employee = emp === 'Пацан' ? 'Девка' : 'Пацан';
+                    } else {
+                        d.employee = emp;
+                    }
+                } else if (leftManual) {
+                    // Только слева — продолжаем цепочку
+                    let emp = leftManual.employee;
+                    let empCount = 0;
+                    for (let k = allDays.indexOf(leftManual); k <= i; k++) {
+                        if (allDays[k].employee === emp) {
+                            empCount++;
+                        } else {
+                            emp = allDays[k].employee;
+                            empCount = 1;
+                        }
+                    }
+                    if (empCount >= 2) {
+                        d.employee = emp === 'Пацан' ? 'Девка' : 'Пацан';
+                    } else {
+                        d.employee = emp;
+                    }
+                } else if (rightManual) {
+                    // Только справа — идём назад от правой
+                    let emp = rightManual.employee;
+                    let empCount = 0;
+                    for (let k = allDays.indexOf(rightManual); k >= i; k--) {
+                        if (allDays[k].employee === emp) {
+                            empCount++;
+                        } else {
+                            emp = allDays[k].employee;
+                            empCount = 1;
+                        }
+                    }
+                    if (empCount >= 2) {
+                        d.employee = emp === 'Пацан' ? 'Девка' : 'Пацан';
+                    } else {
+                        d.employee = emp;
+                    }
+                }
+            }
+
+            // Если всё ещё есть пустые (крайний случай) — заполняем по схеме 2/2
+            for (let i = 0; i < allDays.length; i++) {
+                if (!allDays[i].employee) {
+                    const cycle = Math.floor(i / 2) % 2;
+                    allDays[i].employee = cycle === 0 ? 'Пацан' : 'Девка';
                 }
             }
         },
