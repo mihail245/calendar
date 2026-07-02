@@ -57,11 +57,10 @@
     </div>
     <div class="sub">
         <span>👫 Пацан / Девка · График 2/2</span>
-        <span class="pattern-hint">🧑🧑 👩👩 🧑🧑 👩👩</span>
+        <span class="pattern-hint">🧑🧑 👩👩</span>
         <span class="stats">📌 {{ totalWorkDays }} дней</span>
     </div>
 
-    <!-- Блок ручного ввода -->
     <div class="controls">
         <label>📌 Дата: <input type="date" id="inputDate" :value="today" /></label>
         <label>👤 Кто работал:
@@ -74,7 +73,6 @@
         <button class="btn btn-reset" @click="resetCalendar">✖ Сбросить</button>
     </div>
 
-    <!-- Сетка календаря -->
     <div class="calendar">
         <div class="day-name" v-for="n in ['Пн','Вт','Ср','Чт','Пт','Сб','Вс']" :key="n">{{ n }}</div>
         <div class="day-cell" v-for="(d, idx) in days" :key="idx"
@@ -84,7 +82,6 @@
             <div class="emp" v-if="d.employee" :class="d.employee === 'Пацан' ? 'male' : 'female'">
                 {{ d.employee }}
             </div>
-            <div class="emp holiday" v-else-if="d.date" style="color:#999;">⚪</div>
         </div>
     </div>
 
@@ -157,26 +154,20 @@ new Vue({
             const allDays = daysArr.filter(d => d.date);
             if (allDays.length === 0) return;
 
-            // Проверяем, есть ли ручные записи
             const hasManual = allDays.some(d => d.manual);
 
             if (!hasManual) {
-                // Нет ручных — начинаем с Пацана и идём по схеме: 2 Пацана, 2 Девки
                 for (let i = 0; i < allDays.length; i++) {
-                    const cycle = Math.floor(i / 2) % 2; // 0 = Пацан, 1 = Девка
+                    const cycle = Math.floor(i / 2) % 2;
                     allDays[i].employee = cycle === 0 ? 'Пацан' : 'Девка';
                 }
                 return;
             }
 
-            // Есть ручные — строим от них
-            // Сначала проставляем все ручные
-            // Идём вперёд
             for (let i = 0; i < allDays.length; i++) {
                 const d = allDays[i];
                 if (d.manual) continue;
                 
-                // Ищем ближайшую ручную запись слева
                 let leftManual = null;
                 for (let j = i - 1; j >= 0; j--) {
                     if (allDays[j].manual) {
@@ -185,7 +176,6 @@ new Vue({
                     }
                 }
                 
-                // Ищем ближайшую ручную запись справа
                 let rightManual = null;
                 for (let j = i + 1; j < allDays.length; j++) {
                     if (allDays[j].manual) {
@@ -195,15 +185,12 @@ new Vue({
                 }
 
                 if (leftManual && rightManual) {
-                    // Между двумя ручными — вычисляем по правилу 2/2
                     const leftIdx = allDays.indexOf(leftManual);
                     const rightIdx = allDays.indexOf(rightManual);
                     const distance = rightIdx - leftIdx;
                     
-                    // Смотрим, кто должен быть на позиции i
                     let emp = leftManual.employee;
                     let empCount = 0;
-                    // Считаем сколько раз подряд встречается emp от leftManual до i
                     for (let k = leftIdx; k <= i; k++) {
                         if (allDays[k].employee === emp) {
                             empCount++;
@@ -213,14 +200,12 @@ new Vue({
                         }
                     }
                     
-                    // Если empCount >= 2, меняем
                     if (empCount >= 2) {
                         d.employee = emp === 'Пацан' ? 'Девка' : 'Пацан';
                     } else {
                         d.employee = emp;
                     }
                 } else if (leftManual) {
-                    // Только слева — продолжаем цепочку
                     let emp = leftManual.employee;
                     let empCount = 0;
                     for (let k = allDays.indexOf(leftManual); k <= i; k++) {
@@ -237,7 +222,6 @@ new Vue({
                         d.employee = emp;
                     }
                 } else if (rightManual) {
-                    // Только справа — идём назад от правой
                     let emp = rightManual.employee;
                     let empCount = 0;
                     for (let k = allDays.indexOf(rightManual); k >= i; k--) {
@@ -256,7 +240,6 @@ new Vue({
                 }
             }
 
-            // Если всё ещё есть пустые (крайний случай) — заполняем по схеме 2/2
             for (let i = 0; i < allDays.length; i++) {
                 if (!allDays[i].employee) {
                     const cycle = Math.floor(i / 2) % 2;
