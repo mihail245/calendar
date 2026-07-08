@@ -3,120 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Парсер видео</title>
+    <title>Видеоархив</title>
     <style>
-        body { background: #111; color: #ddd; font-family: monospace; padding: 20px; }
-        .video-item { border: 1px solid #333; padding: 10px; margin: 10px 0; }
-        video { max-width: 100%; }
-        .log { color: #888; font-size: 12px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0d0d0d; color: #f0f0f0; font-family: Arial, sans-serif; padding: 20px; }
+        .header { background: #1a1a1a; padding: 20px; text-align: center; border-bottom: 2px solid #ff3366; }
+        .header h1 { color: #ff3366; font-size: 28px; letter-spacing: 2px; }
+        .menu { display: flex; justify-content: center; gap: 30px; margin: 15px 0; flex-wrap: wrap; }
+        .menu a { color: #ccc; text-decoration: none; font-size: 14px; text-transform: uppercase; padding: 8px 16px; background: #222; border-radius: 4px; }
+        .menu a:hover { background: #ff3366; color: #fff; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; margin-top: 30px; }
+        .card { background: #1a1a1a; border-radius: 8px; overflow: hidden; transition: 0.3s; cursor: pointer; border: 1px solid #2a2a2a; }
+        .card:hover { transform: scale(1.02); border-color: #ff3366; }
+        .card img { width: 100%; height: 160px; object-fit: cover; background: #111; }
+        .card .info { padding: 12px; }
+        .card .info h3 { font-size: 14px; color: #fff; margin-bottom: 4px; }
+        .card .info span { font-size: 12px; color: #888; }
+        .video-container { margin-top: 30px; background: #111; padding: 20px; border-radius: 8px; border: 1px solid #333; }
+        video { width: 100%; max-height: 500px; background: #000; border-radius: 4px; }
+        .footer { text-align: center; margin-top: 40px; padding: 20px; color: #444; font-size: 12px; border-top: 1px solid #222; }
     </style>
 </head>
 <body>
-    <h3>Парсинг видео</h3>
-    <div id="status" class="log">Идёт загрузка страницы...</div>
-    <div id="result"></div>
 
-    <script>
-        const targetUrl = 'https://x.sex-studentki.team/bro-sis';
-        const proxies = [
-            url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-            url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-            url => `https://thingproxy.freeboard.io/fetch/${url}`
-        ];
+<div class="header">
+    <h1>Видеоархив</h1>
+    <div class="menu">
+        <a href="#">Популярное</a>
+        <a href="#">Новое</a>
+        <a href="#">Категории</a>
+        <a href="#">Топ</a>
+    </div>
+</div>
 
-        async function fetchWithProxy(url) {
-            for (const proxy of proxies) {
-                try {
-                    const proxyUrl = proxy(url);
-                    document.getElementById('status').textContent = `Пробуем прокси: ${proxyUrl.split('?')[0]}...`;
-                    const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(15000) });
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    const text = await response.text();
-                    if (text.length < 500) throw new Error('Слишком короткий ответ');
-                    return text;
-                } catch (e) {
-                    document.getElementById('status').textContent += ` | ошибка: ${e.message}`;
-                }
-            }
-            throw new Error('Все прокси не ответили');
+<div class="grid" id="catalog"></div>
+
+<div class="video-container" id="playerContainer">
+    <video id="mainPlayer" controls preload="metadata">
+        <source src="" type="video/mp4">
+    </video>
+    <p style="margin-top:10px; color:#666; text-align:center;">Выберите видео из каталога</p>
+</div>
+
+<div class="footer">© 2026 Видеоархив. 18+</div>
+
+<script>
+    // МАССИВ С ВАШИМ ВИДЕО — ЗДЕСЬ ВСТАВЬТЕ СВОИ ДАННЫЕ
+    const videos = [
+        {
+            title: 'Видео #1',
+            duration: '10:23',
+            thumb: 'https://i.imgur.com/placeholder.jpg', // замените на ссылку превью
+            src: 'https://files.fm/get/6r3wveqfqv?download=1'   // ВАША ПРЯМАЯ ССЫЛКА
         }
+        // МОЖЕТЕ ДОБАВЛЯТЬ ЕЩЁ ОБЪЕКТЫ ЧЕРЕЗ ЗАПЯТУЮ
+    ];
 
-        function extractUrls(html) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const found = new Set();
+    // ---- НИЖЕ НИЧЕГО НЕ МЕНЯЙТЕ ----
+    const catalog = document.getElementById('catalog');
+    const player = document.getElementById('mainPlayer');
 
-            // Теги video и source
-            doc.querySelectorAll('video, source').forEach(el => {
-                let src = el.getAttribute('src') || el.getAttribute('data-src');
-                if (src) found.add(src);
+    function renderCatalog() {
+        catalog.innerHTML = '';
+        videos.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <img src="${item.thumb}" alt="${item.title}" loading="lazy">
+                <div class="info">
+                    <h3>${item.title}</h3>
+                    <span>${item.duration}</span>
+                </div>
+            `;
+            card.addEventListener('click', () => {
+                player.src = item.src;
+                player.play();
             });
+            catalog.appendChild(card);
+        });
+    }
 
-            // Ссылки в атрибутах href
-            doc.querySelectorAll('a[href*=".mp4"], a[href*=".m3u8"], a[href*=".ts"]').forEach(el => {
-                let href = el.getAttribute('href');
-                if (href) found.add(href);
-            });
+    renderCatalog();
 
-            // iframe
-            doc.querySelectorAll('iframe').forEach(el => {
-                let src = el.getAttribute('src');
-                if (src) found.add(src);
-            });
+    // Если плеер не поддерживает формат — показываем ошибку
+    player.onerror = () => {
+        player.innerHTML = '<p style="color:#ff3366; padding:20px;">Ошибка: видео не загружено. Проверьте ссылку.</p>';
+    };
+</script>
 
-            // data-атрибуты
-            doc.querySelectorAll('[data-video], [data-src], [data-file], [data-url]').forEach(el => {
-                let val = el.getAttribute('data-video') || el.getAttribute('data-src') || el.getAttribute('data-file') || el.getAttribute('data-url');
-                if (val) found.add(val);
-            });
-
-            // Поиск в JSON-блоках (часто видео зашиты в window.__INITIAL_STATE__ или подобных)
-            const jsonMatches = html.match(/(https?:\/\/[^\s"'<>]+\.(mp4|m3u8|ts))/gi);
-            if (jsonMatches) {
-                jsonMatches.forEach(url => found.add(url));
-            }
-
-            // Приводим к абсолютным ссылкам
-            const base = new URL(targetUrl);
-            const absolute = [...found].map(src => {
-                try { return new URL(src, base).href; } catch { return src; }
-            }).filter(src => src.includes('.mp4') || src.includes('.m3u8') || src.includes('.ts') || src.includes('video') || src.includes('embed'));
-
-            return [...new Set(absolute)];
-        }
-
-        async function main() {
-            try {
-                const html = await fetchWithProxy(targetUrl);
-                document.getElementById('status').textContent = 'Страница загружена. Ищем видео...';
-
-                const urls = extractUrls(html);
-                const container = document.getElementById('result');
-
-                if (urls.length === 0) {
-                    container.innerHTML = `<p>Видео не найдены. Вот фрагмент HTML для отладки (первые 500 символов):</p>
-                                          <pre style="background:#222; padding:10px; overflow:auto;">${html.slice(0, 500)}</pre>`;
-                    return;
-                }
-
-                container.innerHTML = `<h4>Найдено ${urls.length} ссылок:</h4>` +
-                    urls.map((url, i) => `
-                        <div class="video-item">
-                            <a href="${url}" target="_blank">Ссылка ${i+1}</a>
-                            <video controls preload="metadata" style="display:block; margin-top:5px; max-height:300px;">
-                                <source src="${url}" type="video/mp4">
-                            </video>
-                            <div class="log">${url}</div>
-                        </div>
-                    `).join('');
-
-            } catch (e) {
-                document.getElementById('status').textContent = `Ошибка: ${e.message}`;
-                document.getElementById('result').innerHTML = `<pre style="background:#222; padding:10px;">Попробуйте открыть страницу вручную: <a href="${targetUrl}" target="_blank">${targetUrl}</a> и проверьте, есть ли там видео.</pre>`;
-            }
-        }
-
-        main();
-    </script>
 </body>
 </html>
