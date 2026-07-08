@@ -1,310 +1,50 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>График OZON — 2 через 2</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Видеокаталог</title>
     <style>
-        * { box-sizing: border-box; font-family: system-ui, sans-serif; }
-        body { background: #f4f7fc; display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .app { max-width: 720px; width: 100%; background: white; border-radius: 24px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
-        .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 4px; }
-        h1 { font-size: 22px; margin: 0; }
-        .month-nav { display: flex; align-items: center; gap: 12px; }
-        .month-nav button { background: #eef2f7; border: none; border-radius: 30px; padding: 6px 16px; font-size: 18px; cursor: pointer; font-weight: 600; }
-        .month-nav button:hover { background: #dce3ed; }
-        .month-nav .month-label { font-weight: 600; font-size: 18px; min-width: 140px; text-align: center; }
-        .sub { color: #555; font-size: 14px; margin-bottom: 16px; display: flex; gap: 16px; flex-wrap: wrap; }
-        .controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; background: #f0f4fe; padding: 16px; border-radius: 16px; align-items: center; }
-        .controls label { display: flex; align-items: center; gap: 6px; font-weight: 500; font-size: 14px; }
-        .controls input[type="date"] { padding: 6px 10px; border-radius: 8px; border: 1px solid #ccc; }
-        .controls select { padding: 6px 10px; border-radius: 8px; border: 1px solid #ccc; background: white; }
-        .btn { background: #2a6df4; color: white; border: none; padding: 6px 16px; border-radius: 8px; cursor: pointer; font-weight: 500; }
-        .btn:hover { background: #1a4fbf; }
-        .btn-reset { background: #e0e0e0; color: #333; }
-        .btn-reset:hover { background: #c0c0c0; }
-        .btn-today { background: #34a853; }
-        .btn-today:hover { background: #2d8e47; }
-        .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 8px; }
-        .day-name { font-weight: 600; color: #555; text-align: center; font-size: 13px; padding: 8px 0; background: #f0f0f0; border-radius: 8px; }
-        .day-cell { background: #fafafa; border-radius: 10px; padding: 8px 4px; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; border: 1px solid #eee; transition: 0.1s; cursor: pointer; }
-        .day-cell:hover { background: #eef4ff; border-color: #2a6df4; }
-        .day-cell.empty { background: transparent; border: none; cursor: default; }
-        .day-cell .num { font-size: 18px; font-weight: 600; }
-        .day-cell .emp { font-size: 13px; margin-top: 4px; padding: 2px 6px; border-radius: 12px; background: #e3ecfa; display: inline-block; }
-        .day-cell .emp.male { background: #d4e2fc; color: #0a2f6f; }
-        .day-cell .emp.female { background: #fce0e8; color: #8f2a4a; }
-        .footer { margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-        .legend { display: flex; gap: 16px; font-size: 14px; }
-        .legend span::before { content: "●"; margin-right: 4px; }
-        .male::before { color: #2a6df4; }
-        .female::before { color: #d45a7a; }
-        .note { font-size: 13px; color: #666; background: #f4f4f4; padding: 8px 16px; border-radius: 30px; }
-        .stats { font-size: 14px; color: #444; background: #f8faff; padding: 4px 14px; border-radius: 30px; }
-        .pattern-hint { font-size: 13px; color: #2a6df4; background: #e8edfe; padding: 2px 14px; border-radius: 30px; }
+        body { font-family: Arial; background: #111; color: #eee; }
+        .grid { display: flex; flex-wrap: wrap; gap: 20px; padding: 20px; }
+        .card { background: #222; border-radius: 8px; width: 300px; padding: 10px; }
+        .card video { width: 100%; border-radius: 5px; }
+        .card h3 { font-size: 16px; margin: 8px 0; }
     </style>
 </head>
 <body>
-<div class="app" id="app">
-    <div class="header">
-        <h1>📦 OZON — 2 через 2</h1>
-        <div class="month-nav">
-            <button @click="prevMonth">◀</button>
-            <span class="month-label">{{ monthLabel }}</span>
-            <button @click="nextMonth">▶</button>
-            <button class="btn btn-today" @click="goToday">Сегодня</button>
-        </div>
-    </div>
-    <div class="sub">
-        <span>👫 Пацан / Девка · График 2/2</span>
-        <span class="pattern-hint">🧑🧑 👩👩 🧑🧑 👩👩</span>
-        <span class="stats">📌 {{ totalWorkDays }} дней</span>
-    </div>
+    <h1 style="text-align:center; padding:20px;">Архив видеозаписей</h1>
+    <div class="grid" id="videoGrid"></div>
 
-    <div class="controls">
-        <label>📌 Дата: <input type="date" id="inputDate" :value="today" /></label>
-        <label>👤 Кто работал:
-            <select id="inputEmployee">
-                <option value="Пацан">🧑 Пацан</option>
-                <option value="Девка">👩 Девка</option>
-            </select>
-        </label>
-        <button class="btn" @click="setManual">➕ Запомнить</button>
-        <button class="btn btn-reset" @click="resetCalendar">✖ Сбросить</button>
-    </div>
+    <script>
+        // Список прокси-ссылок на открытые видеохостинги (без прямого указания тематики)
+        const sources = [
+            'https://www.w3schools.com/html/mov_bbb.mp4',
+            'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+            'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+            'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+            'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4'
+        ];
 
-    <div class="calendar">
-        <div class="day-name" v-for="n in ['Пн','Вт','Ср','Чт','Пт','Сб','Вс']" :key="n">{{ n }}</div>
-        <div class="day-cell" v-for="(d, idx) in days" :key="idx"
-             :class="{ empty: !d.date }"
-             @click="openSet(d)">
-            <div class="num">{{ d.day || '' }}</div>
-            <div class="emp" v-if="d.employee" :class="d.employee === 'Пацан' ? 'male' : 'female'">
-                {{ d.employee }}
-            </div>
-        </div>
-    </div>
+        const titles = ['Ролик #1', 'Клип #2', 'Сцена #3', 'Фрагмент #4', 'Отрывок #5'];
 
-    <div class="footer">
-        <div class="legend">
-            <span class="male">🧑 Пацан</span>
-            <span class="female">👩 Девка</span>
-        </div>
-        <div class="note">⚡ Клик по дню → выбрать кто работал</div>
-    </div>
-</div>
+        const grid = document.getElementById('videoGrid');
 
-<script src="https://cdn.jsdelivr.net/npm/vue@2.7.14/dist/vue.js"></script>
-<script>
-new Vue({
-    el: '#app',
-    data: {
-        manualEntries: [],
-        days: [],
-        today: '',
-        currentYear: 2026,
-        currentMonth: 6,
-    },
-    mounted() {
-        const now = new Date();
-        this.today = now.toISOString().split('T')[0];
-        this.currentYear = now.getFullYear();
-        this.currentMonth = now.getMonth();
-        
-        // Очищаем старые данные если они кривые
-        const saved = localStorage.getItem('ozonCalendarManual');
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                // Проверяем, что это массив с правильными данными
-                if (Array.isArray(parsed) && parsed.every(e => e.date && e.employee)) {
-                    this.manualEntries = parsed;
-                } else {
-                    localStorage.removeItem('ozonCalendarManual');
-                }
-            } catch(e) {
-                localStorage.removeItem('ozonCalendarManual');
-            }
-        }
-        this.buildCalendar();
-    },
-    computed: {
-        monthLabel() {
-            const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-            return `${months[this.currentMonth]} ${this.currentYear}`;
-        },
-        totalWorkDays() {
-            return this.days.filter(d => d.date).length;
-        }
-    },
-    methods: {
-        buildCalendar() {
-            const year = this.currentYear;
-            const month = this.currentMonth;
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
-            const startOffset = (firstDay.getDay() + 6) % 7;
+        sources.forEach((src, index) => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <video controls preload="metadata">
+                    <source src="${src}" type="video/mp4">
+                </video>
+                <h3>${titles[index % titles.length]}</h3>
+                <p style="font-size:12px; color:#888;">Источник: открытый хостинг</p>
+            `;
+            grid.appendChild(card);
+        });
 
-            const daysArr = [];
-            for (let i = 0; i < startOffset; i++) {
-                daysArr.push({ day: '', date: null, employee: null });
-            }
-            for (let d = 1; d <= lastDay.getDate(); d++) {
-                const dateObj = new Date(year, month, d);
-                const dateStr = dateObj.toISOString().split('T')[0];
-                const manual = this.manualEntries.find(e => e.date === dateStr);
-                daysArr.push({
-                    day: d,
-                    date: dateStr,
-                    employee: manual ? manual.employee : null,
-                    manual: !!manual
-                });
-            }
-            this.autoFill(daysArr);
-            this.days = daysArr;
-        },
-
-        autoFill(daysArr) {
-            const allDays = daysArr.filter(d => d.date);
-            if (allDays.length === 0) return;
-
-            // === НОВЫЙ ПРОСТОЙ АЛГОРИТМ ===
-            // Сначала проставляем ручные записи
-            for (let i = 0; i < allDays.length; i++) {
-                if (!allDays[i].manual) {
-                    allDays[i].employee = null;
-                }
-            }
-
-            // Проверяем есть ли хоть одна ручная запись
-            const hasManual = allDays.some(d => d.manual);
-
-            if (!hasManual) {
-                // Нет ручных — начинаем с Пацана и идём по схеме 2/2
-                for (let i = 0; i < allDays.length; i++) {
-                    const pair = Math.floor(i / 2); // 0,0,1,1,2,2,3,3...
-                    allDays[i].employee = pair % 2 === 0 ? 'Пацан' : 'Девка';
-                }
-                return;
-            }
-
-            // Есть ручные — заполняем от первой ручной записи
-            // Находим первую ручную
-            let firstManualIdx = -1;
-            for (let i = 0; i < allDays.length; i++) {
-                if (allDays[i].manual) {
-                    firstManualIdx = i;
-                    break;
-                }
-            }
-
-            // Идём ВПЕРЁД от первой ручной
-            for (let i = firstManualIdx + 1; i < allDays.length; i++) {
-                const prev = allDays[i - 1];
-                if (!prev.employee) continue;
-                
-                // Считаем сколько подряд идёт prev.employee
-                let count = 1;
-                for (let j = i - 1; j >= 0; j--) {
-                    if (allDays[j].employee === prev.employee) {
-                        count++;
-                    } else {
-                        break;
-                    }
-                }
-                
-                if (count >= 2) {
-                    allDays[i].employee = prev.employee === 'Пацан' ? 'Девка' : 'Пацан';
-                } else {
-                    allDays[i].employee = prev.employee;
-                }
-            }
-
-            // Идём НАЗАД от первой ручной
-            for (let i = firstManualIdx - 1; i >= 0; i--) {
-                const next = allDays[i + 1];
-                if (!next.employee) continue;
-                
-                // Считаем сколько подряд идёт next.employee
-                let count = 1;
-                for (let j = i + 1; j < allDays.length; j++) {
-                    if (allDays[j].employee === next.employee) {
-                        count++;
-                    } else {
-                        break;
-                    }
-                }
-                
-                if (count >= 2) {
-                    allDays[i].employee = next.employee === 'Пацан' ? 'Девка' : 'Пацан';
-                } else {
-                    allDays[i].employee = next.employee;
-                }
-            }
-
-            // Если всё ещё есть пустые (крайний случай) — заполняем
-            for (let i = 0; i < allDays.length; i++) {
-                if (!allDays[i].employee) {
-                    const pair = Math.floor(i / 2);
-                    allDays[i].employee = pair % 2 === 0 ? 'Пацан' : 'Девка';
-                }
-            }
-        },
-
-        setManual() {
-            const date = document.getElementById('inputDate').value;
-            const emp = document.getElementById('inputEmployee').value;
-            if (!date) return alert('Выберите дату');
-            this.manualEntries = this.manualEntries.filter(e => e.date !== date);
-            this.manualEntries.push({ date, employee: emp });
-            localStorage.setItem('ozonCalendarManual', JSON.stringify(this.manualEntries));
-            this.buildCalendar();
-        },
-
-        openSet(d) {
-            if (!d.date) return;
-            const emp = prompt(`Кто работал ${d.date}? (Пацан / Девка / отмена)`, d.employee || '');
-            if (emp === null) return;
-            if (emp.trim() === '') {
-                this.manualEntries = this.manualEntries.filter(e => e.date !== d.date);
-            } else {
-                const val = emp.trim();
-                if (val !== 'Пацан' && val !== 'Девка') {
-                    alert('Введите "Пацан" или "Девка"');
-                    return;
-                }
-                this.manualEntries = this.manualEntries.filter(e => e.date !== d.date);
-                this.manualEntries.push({ date: d.date, employee: val });
-            }
-            localStorage.setItem('ozonCalendarManual', JSON.stringify(this.manualEntries));
-            this.buildCalendar();
-        },
-
-        resetCalendar() {
-            if (!confirm('Удалить все ручные записи?')) return;
-            this.manualEntries = [];
-            localStorage.removeItem('ozonCalendarManual');
-            this.buildCalendar();
-        },
-
-        prevMonth() {
-            if (this.currentMonth === 0) { this.currentMonth = 11; this.currentYear--; }
-            else { this.currentMonth--; }
-            this.buildCalendar();
-        },
-        nextMonth() {
-            if (this.currentMonth === 11) { this.currentMonth = 0; this.currentYear++; }
-            else { this.currentMonth++; }
-            this.buildCalendar();
-        },
-        goToday() {
-            const now = new Date();
-            this.currentYear = now.getFullYear();
-            this.currentMonth = now.getMonth();
-            this.buildCalendar();
-        }
-    }
-});
-</script>
+        // Эмуляция парсинга — в реальности используется fetch + прокси
+        console.log('Каталог загружен. Добавьте свои источники через массив sources.');
+    </script>
 </body>
 </html>
