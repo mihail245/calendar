@@ -3,145 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Hardcore Aggregator - JS-Only Mock</title>
+    <title>Adult Video Catalog</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #1a1a1a;
-            color: #f0f0f0;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        h1 {
-            color: #ff4500;
-            margin-bottom: 30px;
-        }
-        .video-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-            width: 100%;
-            max-width: 1200px;
-        }
-        .video-card {
-            background-color: #2a2a2a;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-            transition: transform 0.2s;
-            text-decoration: none;
-            color: inherit;
-        }
-        .video-card:hover {
-            transform: translateY(-5px);
-        }
-        .video-card img {
-            width: 100%;
-            height: 180px;
-            object-fit: cover;
-            display: block;
-        }
-        .video-card-info {
-            padding: 15px;
-        }
-        .video-card-info h2 {
-            font-size: 1.1em;
-            margin: 0 0 10px 0;
-            color: #ff6347;
-            height: 3.3em;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-        }
-        .video-card-info p {
-            font-size: 0.9em;
-            color: #bbb;
-            margin: 0;
-        }
-        .load-more {
-            background-color: #ff4500;
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            font-size: 1.1em;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 30px;
-            transition: background-color 0.2s;
-        }
-        .load-more:hover {
-            background-color: #e03d00;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0d0d0d; color: #f0f0f0; font-family: Arial, sans-serif; padding: 20px; }
+        .header { background: #1a1a1a; padding: 20px; text-align: center; border-bottom: 2px solid #ff3366; }
+        .header h1 { color: #ff3366; font-size: 28px; letter-spacing: 2px; }
+        .menu { display: flex; justify-content: center; gap: 30px; margin: 15px 0; flex-wrap: wrap; }
+        .menu a { color: #ccc; text-decoration: none; font-size: 14px; text-transform: uppercase; padding: 8px 16px; background: #222; border-radius: 4px; }
+        .menu a:hover { background: #ff3366; color: #fff; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; margin-top: 30px; }
+        .card { background: #1a1a1a; border-radius: 8px; overflow: hidden; transition: 0.3s; cursor: pointer; border: 1px solid #2a2a2a; }
+        .card:hover { transform: scale(1.02); border-color: #ff3366; }
+        .card img { width: 100%; height: 160px; object-fit: cover; background: #111; }
+        .card .info { padding: 12px; }
+        .card .info h3 { font-size: 14px; color: #fff; margin-bottom: 4px; }
+        .card .info span { font-size: 12px; color: #888; }
+        .video-container { margin-top: 30px; background: #111; padding: 20px; border-radius: 8px; border: 1px solid #333; }
+        video { width: 100%; max-height: 500px; background: #000; border-radius: 4px; }
+        .footer { text-align: center; margin-top: 40px; padding: 20px; color: #444; font-size: 12px; border-top: 1px solid #222; }
     </style>
 </head>
 <body>
-    <h1>Fresh XXX Content (Mock Data)</h1>
-    <div id="video-grid" class="video-grid">
-        <!-- Видео будут загружены сюда JS -->
+
+<div class="header">
+    <h1>XXX Video Archive</h1>
+    <div class="menu">
+        <a href="#">Популярное</a>
+        <a href="#">Новое</a>
+        <a href="#">Категории</a>
+        <a href="#">Топ</a>
     </div>
-    <button id="load-more-btn" class="load-more">Load More Hotness</button>
+</div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const videoGrid = document.getElementById('video-grid');
-            const loadMoreBtn = document.getElementById('load-more-btn');
-            let currentPage = 0;
-            const videosPerPage = 6;
+<div class="grid" id="catalog">
+    <!-- Карточки генерируются через JS -->
+</div>
 
-            const mockVideos = [
-                { title: "Hot MILF gets pounded by young stud", thumbnail: "https://via.placeholder.com/300x180/FF0000/FFFFFF?text=MOCK_VIDEO_1", url: "https://example.com/video1" },
-                { title: "Anal fun with a curvy latina", thumbnail: "https://via.placeholder.com/300x180/00FF00/FFFFFF?text=MOCK_VIDEO_2", url: "https://example.com/video2" },
-                { title: "Teenage fantasy: stepsister caught naked", thumbnail: "https://via.placeholder.com/300x180/0000FF/FFFFFF?text=MOCK_VIDEO_3", url: "https://example.com/video3" },
-                { title: "Big natural tits compilation", thumbnail: "https://via.placeholder.com/300x180/FFFF00/000000?text=MOCK_VIDEO_4", url: "https://example.com/video4" },
-                { title: "Public sex adventure gone wild", thumbnail: "https://via.placeholder.com/300x180/FF00FF/FFFFFF?text=MOCK_VIDEO_5", url: "https://example.com/video5" },
-                { title: "Asian schoolgirl creampie gangbang", thumbnail: "https://via.placeholder.com/300x180/00FFFF/000000?text=MOCK_VIDEO_6", url: "https://example.com/video6" },
-                { title: "Horny cougar seduces delivery boy", thumbnail: "https://via.placeholder.com/300x180/800000/FFFFFF?text=MOCK_VIDEO_7", url: "https://example.com/video7" },
-                { title: "Threesome with two busty blondes", thumbnail: "https://via.placeholder.com/300x180/008000/FFFFFF?text=MOCK_VIDEO_8", url: "https://example.com/video8" },
-                { title: "Deepthroat challenge with a pornstar", thumbnail: "https://via.placeholder.com/300x180/000080/FFFFFF?text=MOCK_VIDEO_9", url: "https://example.com/video9" },
-                { title: "VR porn experience for couples", thumbnail: "https://via.placeholder.com/300x180/808000/FFFFFF?text=MOCK_VIDEO_10", url: "https://example.com/video10" },
-                { title: "Gay bareback brutal fucking", thumbnail: "https://via.placeholder.com/300x180/800080/FFFFFF?text=MOCK_VIDEO_11", url: "https://example.com/video11" },
-                { title: "Lesbian strap-on domination scene", thumbnail: "https://via.placeholder.com/300x180/008080/FFFFFF?text=MOCK_VIDEO_12", url: "https://example.com/video12" }
-            ];
+<div class="video-container" id="playerContainer">
+    <video id="mainPlayer" controls preload="metadata">
+        <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+    </video>
+    <p style="margin-top:10px; color:#666; text-align:center;">Выберите видео из каталога</p>
+</div>
 
-            function createVideoCard(video) {
-                const videoCard = document.createElement('a');
-                videoCard.href = video.url;
-                videoCard.target = "_blank";
-                videoCard.classList.add('video-card');
-                videoCard.innerHTML = `
-                    <img src="${video.thumbnail}" alt="${video.title}">
-                    <div class="video-card-info">
-                        <h2>${video.title}</h2>
-                        <p>Source: Fictive Porn Site</p>
-                    </div>
-                `;
-                return videoCard;
-            }
+<div class="footer">© 2026 Видеоархив. 18+</div>
 
-            function loadVideos() {
-                const startIndex = currentPage * videosPerPage;
-                const endIndex = startIndex + videosPerPage;
-                const videosToLoad = mockVideos.slice(startIndex, endIndex);
+<script>
+    // Имитация каталога с превью (используются тестовые видео и заглушки)
+    const videos = [
+        { title: 'Сцена #01', duration: '12:34', thumb: 'https://via.placeholder.com/320x180/440022/ff66aa?text=18+', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' },
+        { title: 'Сцена #02', duration: '08:21', thumb: 'https://via.placeholder.com/320x180/330055/ff77bb?text=18+', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4' },
+        { title: 'Сцена #03', duration: '15:07', thumb: 'https://via.placeholder.com/320x180/550033/ff6699?text=18+', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4' },
+        { title: 'Сцена #04', duration: '09:44', thumb: 'https://via.placeholder.com/320x180/220066/ff88cc?text=18+', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4' },
+        { title: 'Сцена #05', duration: '11:22', thumb: 'https://via.placeholder.com/320x180/660044/ff55aa?text=18+', src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4' }
+    ];
 
-                videosToLoad.forEach(video => {
-                    videoGrid.appendChild(createVideoCard(video));
-                });
+    const catalog = document.getElementById('catalog');
+    const player = document.getElementById('mainPlayer');
 
-                currentPage++;
-
-                if (endIndex >= mockVideos.length) {
-                    loadMoreBtn.style.display = 'none';
-                }
-            }
-
-            loadMoreBtn.addEventListener('click', loadVideos);
-            loadVideos();
+    // Рендер карточек
+    videos.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+            <img src="${item.thumb}" alt="${item.title}" loading="lazy">
+            <div class="info">
+                <h3>${item.title}</h3>
+                <span>${item.duration}</span>
+            </div>
+        `;
+        card.addEventListener('click', () => {
+            player.src = item.src;
+            player.play();
         });
-    </script>
+        catalog.appendChild(card);
+    });
+
+    // Если плеер не поддерживает формат, показываем ошибку
+    player.onerror = () => {
+        player.innerHTML = '<p style="color:#ff3366; padding:20px;">Ошибка: формат не поддерживается</p>';
+    };
+</script>
+
 </body>
 </html>
