@@ -4,84 +4,119 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Парсер видео</title>
+    <style>
+        body { background: #111; color: #ddd; font-family: monospace; padding: 20px; }
+        .video-item { border: 1px solid #333; padding: 10px; margin: 10px 0; }
+        video { max-width: 100%; }
+        .log { color: #888; font-size: 12px; }
+    </style>
 </head>
 <body>
-    <h3>Извлечение видео с указанной страницы</h3>
-    <div id="result">Загрузка...</div>
+    <h3>Парсинг видео</h3>
+    <div id="status" class="log">Идёт загрузка страницы...</div>
+    <div id="result"></div>
 
     <script>
         const targetUrl = 'https://sex-studentki.cafe/bro-sis';
-        const proxy = 'https://api.allorigins.win/raw?url=';
+        const proxies = [
+            url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+            url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+            url => `https://thingproxy.freeboard.io/fetch/${url}`
+        ];
 
-        async function parseVideo() {
+        async function fetchWithProxy(url) {
+            for (const proxy of proxies) {
+                try {
+                    const proxyUrl = proxy(url);
+                    document.getElementById('status').textContent = `Пробуем прокси: ${proxyUrl.split('?')[0]}...`;
+                    const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(15000) });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const text = await response.text();
+                    if (text.length < 500) throw new Error('Слишком короткий ответ');
+                    return text;
+                } catch (e) {
+                    document.getElementById('status').textContent += ` | ошибка: ${e.message}`;
+                }
+            }
+            throw new Error('Все прокси не ответили');
+        }
+
+        function extractUrls(html) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const found = new Set();
+
+            // Теги video и source
+            doc.querySelectorAll('video, source').forEach(el => {
+                let src = el.getAttribute('src') || el.getAttribute('data-src');
+                if (src) found.add(src);
+            });
+
+            // Ссылки в атрибутах href
+            doc.querySelectorAll('a[href*=".mp4"], a[href*=".m3u8"], a[href*=".ts"]').forEach(el => {
+                let href = el.getAttribute('href');
+                if (href) found.add(href);
+            });
+
+            // iframe
+            doc.querySelectorAll('iframe').forEach(el => {
+                let src = el.getAttribute('src');
+                if (src) found.add(src);
+            });
+
+            // data-атрибуты
+            doc.querySelectorAll('[data-video], [data-src], [data-file], [data-url]').forEach(el => {
+                let val = el.getAttribute('data-video') || el.getAttribute('data-src') || el.getAttribute('data-file') || el.getAttribute('data-url');
+                if (val) found.add(val);
+            });
+
+            // Поиск в JSON-блоках (часто видео зашиты в window.__INITIAL_STATE__ или подобных)
+            const jsonMatches = html.match(/(https?:\/\/[^\s"'<>]+\.(mp4|m3u8|ts))/gi);
+            if (jsonMatches) {
+                jsonMatches.forEach(url => found.add(url));
+            }
+
+            // Приводим к абсолютным ссылкам
+            const base = new URL(targetUrl);
+            const absolute = [...found].map(src => {
+                try { return new URL(src, base).href; } catch { return src; }
+            }).filter(src => src.includes('.mp4') || src.includes('.m3u8') || src.includes('.ts') || src.includes('video') || src.includes('embed'));
+
+            return [...new Set(absolute)];
+        }
+
+        async function main() {
             try {
-                const response = await fetch(proxy + encodeURIComponent(targetUrl));
-                const html = await response.text();
+                const html = await fetchWithProxy(targetUrl);
+                document.getElementById('status').textContent = 'Страница загружена. Ищем видео...';
 
-                // Парсим через DOMParser
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-
-                // Ищем все возможные источники видео
-                const sources = new Set();
-
-                // 1. Теги video / source
-                doc.querySelectorAll('video source, video').forEach(el => {
-                    let src = el.getAttribute('src') || el.getAttribute('data-src');
-                    if (src) sources.add(src);
-                });
-
-                // 2. Ссылки на .mp4, .m3u8, .ts
-                doc.querySelectorAll('a[href*=".mp4"], a[href*=".m3u8"], a[href*=".ts"]').forEach(el => {
-                    let href = el.getAttribute('href');
-                    if (href) sources.add(href);
-                });
-
-                // 3. iframe (возможно, видео встроено)
-                doc.querySelectorAll('iframe').forEach(el => {
-                    let src = el.getAttribute('src');
-                    if (src) sources.add(src);
-                });
-
-                // 4. data-атрибуты (популярные плееры)
-                doc.querySelectorAll('[data-video], [data-src], [data-file]').forEach(el => {
-                    let val = el.getAttribute('data-video') || el.getAttribute('data-src') || el.getAttribute('data-file');
-                    if (val) sources.add(val);
-                });
-
-                // Приводим ссылки к абсолютному виду
-                const baseUrl = new URL(targetUrl);
-                const absoluteUrls = [...sources].map(src => {
-                    try {
-                        return new URL(src, baseUrl).href;
-                    } catch {
-                        return src;
-                    }
-                }).filter(src => src.includes('.mp4') || src.includes('.m3u8') || src.includes('video') || src.includes('embed'));
-
-                // Выводим результат
+                const urls = extractUrls(html);
                 const container = document.getElementById('result');
-                if (absoluteUrls.length === 0) {
-                    container.innerHTML = 'Видео не найдены. Попробуйте обновить селекторы или проверьте структуру страницы.';
+
+                if (urls.length === 0) {
+                    container.innerHTML = `<p>Видео не найдены. Вот фрагмент HTML для отладки (первые 500 символов):</p>
+                                          <pre style="background:#222; padding:10px; overflow:auto;">${html.slice(0, 500)}</pre>`;
                     return;
                 }
 
-                container.innerHTML = '<h4>Найденные ссылки:</h4>' + 
-                    absoluteUrls.map((url, i) => 
-                        `<div style="margin:5px 0;">
-                            <a href="${url}" target="_blank">Ссылка ${i+1}</a> 
-                            <video controls width="400" style="display:block; margin-top:5px;">
+                container.innerHTML = `<h4>Найдено ${urls.length} ссылок:</h4>` +
+                    urls.map((url, i) => `
+                        <div class="video-item">
+                            <a href="${url}" target="_blank">Ссылка ${i+1}</a>
+                            <video controls preload="metadata" style="display:block; margin-top:5px; max-height:300px;">
                                 <source src="${url}" type="video/mp4">
                             </video>
-                        </div>`
-                    ).join('');
+                            <div class="log">${url}</div>
+                        </div>
+                    `).join('');
 
-            } catch (error) {
-                document.getElementById('result').innerHTML = 'Ошибка: ' + error.message;
+            } catch (e) {
+                document.getElementById('status').textContent = `Ошибка: ${e.message}`;
+                document.getElementById('result').innerHTML = `<pre style="background:#222; padding:10px;">Попробуйте открыть страницу вручную: <a href="${targetUrl}" target="_blank">${targetUrl}</a> и проверьте, есть ли там видео.</pre>`;
             }
         }
 
-        parseVideo();
+        main();
     </script>
 </body>
 </html>
