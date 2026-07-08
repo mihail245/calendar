@@ -3,65 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Агрегатор медиа</title>
+    <title>My Hardcore Aggregator - JS-Only Mock</title>
     <style>
-        body { background: #0a0a0a; color: #ddd; font-family: monospace; padding: 20px; }
-        .video-item { border: 1px solid #333; padding: 10px; margin: 10px 0; }
-        video { max-width: 100%; }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #ff4500;
+            margin-bottom: 30px;
+        }
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+        .video-card {
+            background-color: #2a2a2a;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+            text-decoration: none;
+            color: inherit;
+        }
+        .video-card:hover {
+            transform: translateY(-5px);
+        }
+        .video-card img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            display: block;
+        }
+        .video-card-info {
+            padding: 15px;
+        }
+        .video-card-info h2 {
+            font-size: 1.1em;
+            margin: 0 0 10px 0;
+            color: #ff6347;
+            height: 3.3em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+        .video-card-info p {
+            font-size: 0.9em;
+            color: #bbb;
+            margin: 0;
+        }
+        .load-more {
+            background-color: #ff4500;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1.1em;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 30px;
+            transition: background-color 0.2s;
+        }
+        .load-more:hover {
+            background-color: #e03d00;
+        }
     </style>
 </head>
 <body>
-    <h1>Сборник материалов</h1>
-    <div id="output"></div>
+    <h1>Fresh XXX Content (Mock Data)</h1>
+    <div id="video-grid" class="video-grid">
+        <!-- Видео будут загружены сюда JS -->
+    </div>
+    <button id="load-more-btn" class="load-more">Load More Hotness</button>
 
     <script>
-        // Замените URL на целевой домен
-        const TARGET_URL = 'https://sex-studentki.cafe/video/lezhit-i-ne-podozrevaet-no-tut-uzhe-seks-nazrevaet-smotri-do-konca-253269';
+        document.addEventListener('DOMContentLoaded', () => {
+            const videoGrid = document.getElementById('video-grid');
+            const loadMoreBtn = document.getElementById('load-more-btn');
+            let currentPage = 0;
+            const videosPerPage = 6;
 
-        async function fetchAndParse() {
-            try {
-                // Используем публичный CORS-прокси для обхода блокировок
-                const proxy = 'https://corsproxy.io/?url=';
-                const response = await fetch(proxy + encodeURIComponent(TARGET_URL));
-                const html = await response.text();
+            const mockVideos = [
+                { title: "Hot MILF gets pounded by young stud", thumbnail: "https://via.placeholder.com/300x180/FF0000/FFFFFF?text=MOCK_VIDEO_1", url: "https://example.com/video1" },
+                { title: "Anal fun with a curvy latina", thumbnail: "https://via.placeholder.com/300x180/00FF00/FFFFFF?text=MOCK_VIDEO_2", url: "https://example.com/video2" },
+                { title: "Teenage fantasy: stepsister caught naked", thumbnail: "https://via.placeholder.com/300x180/0000FF/FFFFFF?text=MOCK_VIDEO_3", url: "https://example.com/video3" },
+                { title: "Big natural tits compilation", thumbnail: "https://via.placeholder.com/300x180/FFFF00/000000?text=MOCK_VIDEO_4", url: "https://example.com/video4" },
+                { title: "Public sex adventure gone wild", thumbnail: "https://via.placeholder.com/300x180/FF00FF/FFFFFF?text=MOCK_VIDEO_5", url: "https://example.com/video5" },
+                { title: "Asian schoolgirl creampie gangbang", thumbnail: "https://via.placeholder.com/300x180/00FFFF/000000?text=MOCK_VIDEO_6", url: "https://example.com/video6" },
+                { title: "Horny cougar seduces delivery boy", thumbnail: "https://via.placeholder.com/300x180/800000/FFFFFF?text=MOCK_VIDEO_7", url: "https://example.com/video7" },
+                { title: "Threesome with two busty blondes", thumbnail: "https://via.placeholder.com/300x180/008000/FFFFFF?text=MOCK_VIDEO_8", url: "https://example.com/video8" },
+                { title: "Deepthroat challenge with a pornstar", thumbnail: "https://via.placeholder.com/300x180/000080/FFFFFF?text=MOCK_VIDEO_9", url: "https://example.com/video9" },
+                { title: "VR porn experience for couples", thumbnail: "https://via.placeholder.com/300x180/808000/FFFFFF?text=MOCK_VIDEO_10", url: "https://example.com/video10" },
+                { title: "Gay bareback brutal fucking", thumbnail: "https://via.placeholder.com/300x180/800080/FFFFFF?text=MOCK_VIDEO_11", url: "https://example.com/video11" },
+                { title: "Lesbian strap-on domination scene", thumbnail: "https://via.placeholder.com/300x180/008080/FFFFFF?text=MOCK_VIDEO_12", url: "https://example.com/video12" }
+            ];
 
-                // Парсим через DOMParser
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
+            function createVideoCard(video) {
+                const videoCard = document.createElement('a');
+                videoCard.href = video.url;
+                videoCard.target = "_blank";
+                videoCard.classList.add('video-card');
+                videoCard.innerHTML = `
+                    <img src="${video.thumbnail}" alt="${video.title}">
+                    <div class="video-card-info">
+                        <h2>${video.title}</h2>
+                        <p>Source: Fictive Porn Site</p>
+                    </div>
+                `;
+                return videoCard;
+            }
 
-                // Ищем все video-теги или ссылки на MP4 (адаптируйте селектор)
-                const videoElements = doc.querySelectorAll('video source, a[href$=".mp4"], video');
-                const videoUrls = [];
+            function loadVideos() {
+                const startIndex = currentPage * videosPerPage;
+                const endIndex = startIndex + videosPerPage;
+                const videosToLoad = mockVideos.slice(startIndex, endIndex);
 
-                videoElements.forEach(el => {
-                    let src = el.getAttribute('src') || el.getAttribute('href');
-                    if (src && src.startsWith('//')) src = 'https:' + src;
-                    if (src && !src.startsWith('http')) src = new URL(src, TARGET_URL).href;
-                    if (src && src.includes('.mp4')) videoUrls.push(src);
+                videosToLoad.forEach(video => {
+                    videoGrid.appendChild(createVideoCard(video));
                 });
 
-                // Уникальные ссылки
-                const unique = [...new Set(videoUrls)];
-                renderVideos(unique);
-            } catch (e) {
-                document.getElementById('output').innerHTML = 'Ошибка: ' + e.message;
+                currentPage++;
+
+                if (endIndex >= mockVideos.length) {
+                    loadMoreBtn.style.display = 'none';
+                }
             }
-        }
 
-        function renderVideos(urls) {
-            const container = document.getElementById('output');
-            container.innerHTML = urls.map(url => `
-                <div class="video-item">
-                    <video controls preload="metadata">
-                        <source src="${url}" type="video/mp4">
-                    </video>
-                    <p>Источник: ${url}</p>
-                </div>
-            `).join('');
-        }
-
-        // Запуск
-        fetchAndParse();
+            loadMoreBtn.addEventListener('click', loadVideos);
+            loadVideos();
+        });
     </script>
 </body>
 </html>
