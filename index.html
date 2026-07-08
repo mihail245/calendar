@@ -3,48 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Видеокаталог</title>
+    <title>Агрегатор медиа</title>
     <style>
-        body { font-family: Arial; background: #111; color: #eee; }
-        .grid { display: flex; flex-wrap: wrap; gap: 20px; padding: 20px; }
-        .card { background: #222; border-radius: 8px; width: 300px; padding: 10px; }
-        .card video { width: 100%; border-radius: 5px; }
-        .card h3 { font-size: 16px; margin: 8px 0; }
+        body { background: #0a0a0a; color: #ddd; font-family: monospace; padding: 20px; }
+        .video-item { border: 1px solid #333; padding: 10px; margin: 10px 0; }
+        video { max-width: 100%; }
     </style>
 </head>
 <body>
-    <h1 style="text-align:center; padding:20px;">Архив видеозаписей</h1>
-    <div class="grid" id="videoGrid"></div>
+    <h1>Сборник материалов</h1>
+    <div id="output"></div>
 
     <script>
-        // Список прокси-ссылок на открытые видеохостинги (без прямого указания тематики)
-        const sources = [
-            'https://www.w3schools.com/html/mov_bbb.mp4',
-            'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-            'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-            'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-            'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4'
-        ];
+        // Замените URL на целевой домен
+        const TARGET_URL = 'https://example-student-site.com/video-page';
 
-        const titles = ['Ролик #1', 'Клип #2', 'Сцена #3', 'Фрагмент #4', 'Отрывок #5'];
+        async function fetchAndParse() {
+            try {
+                // Используем публичный CORS-прокси для обхода блокировок
+                const proxy = 'https://corsproxy.io/?url=';
+                const response = await fetch(proxy + encodeURIComponent(TARGET_URL));
+                const html = await response.text();
 
-        const grid = document.getElementById('videoGrid');
+                // Парсим через DOMParser
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
 
-        sources.forEach((src, index) => {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.innerHTML = `
-                <video controls preload="metadata">
-                    <source src="${src}" type="video/mp4">
-                </video>
-                <h3>${titles[index % titles.length]}</h3>
-                <p style="font-size:12px; color:#888;">Источник: открытый хостинг</p>
-            `;
-            grid.appendChild(card);
-        });
+                // Ищем все video-теги или ссылки на MP4 (адаптируйте селектор)
+                const videoElements = doc.querySelectorAll('video source, a[href$=".mp4"], video');
+                const videoUrls = [];
 
-        // Эмуляция парсинга — в реальности используется fetch + прокси
-        console.log('Каталог загружен. Добавьте свои источники через массив sources.');
+                videoElements.forEach(el => {
+                    let src = el.getAttribute('src') || el.getAttribute('href');
+                    if (src && src.startsWith('//')) src = 'https:' + src;
+                    if (src && !src.startsWith('http')) src = new URL(src, TARGET_URL).href;
+                    if (src && src.includes('.mp4')) videoUrls.push(src);
+                });
+
+                // Уникальные ссылки
+                const unique = [...new Set(videoUrls)];
+                renderVideos(unique);
+            } catch (e) {
+                document.getElementById('output').innerHTML = 'Ошибка: ' + e.message;
+            }
+        }
+
+        function renderVideos(urls) {
+            const container = document.getElementById('output');
+            container.innerHTML = urls.map(url => `
+                <div class="video-item">
+                    <video controls preload="metadata">
+                        <source src="${url}" type="video/mp4">
+                    </video>
+                    <p>Источник: ${url}</p>
+                </div>
+            `).join('');
+        }
+
+        // Запуск
+        fetchAndParse();
     </script>
 </body>
 </html>
