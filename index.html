@@ -218,7 +218,6 @@
             user-select: none;
             min-width: 44px;
             min-height: 44px;
-            position: relative;
         }
         .controls-bottom button:focus {
             outline: none;
@@ -248,95 +247,21 @@
             flex: 1;
         }
 
-        .speed-btn {
-            background: rgba(255,255,255,0.08) !important;
-            padding: 3px 10px !important;
-            border-radius: 4px !important;
+        .timeline-btn {
+            background: rgba(255,255,255,0.08);
+            padding: 3px 10px;
+            border-radius: 4px;
             font-size: 13px;
             font-weight: 600;
-            color: #fff !important;
-            min-width: 44px;
+            color: #fff;
             text-align: center;
-            -webkit-tap-highlight-color: transparent !important;
-            outline: none !important;
-            user-select: none !important;
-        }
-        .speed-btn:hover {
-            background: rgba(255,255,255,0.2) !important;
-            color: #ff0000 !important;
-        }
-        .speed-btn:focus {
-            outline: none !important;
-        }
-        .speed-btn:active {
-            transform: scale(0.92);
-        }
-
-        .speed-dropdown {
-            position: relative;
-            display: inline-block;
-        }
-        .speed-dropdown .dropdown-content {
-            display: none;
-            position: absolute;
-            bottom: 110%;
-            right: 0;
-            background: rgba(30,30,30,0.95);
-            border-radius: 8px;
-            min-width: 90px;
-            box-shadow: 0 4px 30px rgba(0,0,0,0.8);
-            overflow: hidden;
-            backdrop-filter: blur(10px);
-            padding: 4px 0;
-        }
-        .speed-dropdown .dropdown-content.show {
-            display: block;
-        }
-        .speed-dropdown .dropdown-content button {
-            display: block;
-            width: 100%;
-            padding: 8px 16px;
-            background: transparent;
-            border: none;
-            color: #ddd;
-            font-size: 14px;
-            cursor: pointer;
-            text-align: center;
-            transition: 0.15s;
             -webkit-tap-highlight-color: transparent;
             outline: none;
-            min-height: 40px;
-        }
-        .speed-dropdown .dropdown-content button:focus {
-            outline: none;
-        }
-        .speed-dropdown .dropdown-content button:hover {
-            background: #ff0000;
-            color: #fff;
-        }
-        .speed-dropdown .dropdown-content button.active {
-            color: #ff0000;
-            font-weight: bold;
-        }
-
-        .timeline-btn {
-            background: rgba(255,255,255,0.08) !important;
-            padding: 3px 10px !important;
-            border-radius: 4px !important;
-            font-size: 13px;
-            font-weight: 600;
-            color: #fff !important;
-            text-align: center;
-            -webkit-tap-highlight-color: transparent !important;
-            outline: none !important;
-            user-select: none !important;
+            user-select: none;
         }
         .timeline-btn:hover {
-            background: rgba(255,255,255,0.2) !important;
-            color: #ff0000 !important;
-        }
-        .timeline-btn:focus {
-            outline: none !important;
+            background: rgba(255,255,255,0.2);
+            color: #ff0000;
         }
         .timeline-btn:active {
             transform: scale(0.92);
@@ -642,18 +567,6 @@
                         </div>
                     </div>
 
-                    <div class="speed-dropdown">
-                        <button class="speed-btn" id="speedBtn">1x</button>
-                        <div class="dropdown-content" id="speedMenu">
-                            <button data-speed="0.5">0.5x</button>
-                            <button data-speed="0.75">0.75x</button>
-                            <button data-speed="1" class="active">1x</button>
-                            <button data-speed="1.25">1.25x</button>
-                            <button data-speed="1.5">1.5x</button>
-                            <button data-speed="2">2x</button>
-                        </div>
-                    </div>
-
                     <button id="fullscreenBtn">
                         <svg viewBox="0 0 24 24" id="fsIcon">
                             <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
@@ -684,8 +597,6 @@
     const timeDisplay = document.getElementById('timeDisplay');
     const progressBar = document.getElementById('progressBar');
     const progressFill = document.getElementById('progressFill');
-    const speedBtn = document.getElementById('speedBtn');
-    const speedMenu = document.getElementById('speedMenu');
     const timelineBtn = document.getElementById('timelineBtn');
     const timelineMenu = document.getElementById('timelineMenu');
     const fullscreenBtn = document.getElementById('fullscreenBtn');
@@ -701,15 +612,10 @@
     let isControlsVisible = false;
     let isDragging = false;
     let wasPlaying = false;
-    let previewFrameTimeout = null;
-    let isSeeking = false;
+    let previewTimeout = null;
 
-    // Настройка canvas для превью
     previewCanvas.width = 160;
     previewCanvas.height = 90;
-
-    // === КЭШ ПРЕВЬЮ ДЛЯ ТАЙМКОДОВ ===
-    const thumbCache = new Map();
 
     function showControls() {
         controls.classList.add('show');
@@ -756,102 +662,72 @@
         }
     }
 
-    // === ФУНКЦИЯ ДЛЯ ЗАХВАТА КАДРА С КЭШИРОВАНИЕМ ===
-    function capturePreviewFrame(time, canvas, callback) {
-        // Проверяем кэш
-        const cacheKey = Math.round(time * 10) / 10;
-        if (thumbCache.has(cacheKey)) {
-            const cachedData = thumbCache.get(cacheKey);
-            const img = new Image();
-            img.onload = () => {
-                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                if (callback) callback();
-            };
-            img.src = cachedData;
-            return;
-        }
+    // === ПРОСТАЯ ФУНКЦИЯ ДЛЯ ПРЕВЬЮ ===
+    function capturePreview(time, canvas) {
+        if (video.readyState < 2) return;
 
-        // Если видео не загружено, пробуем позже
-        if (video.readyState < 2) {
-            setTimeout(() => capturePreviewFrame(time, canvas, callback), 200);
-            return;
-        }
-
-        // Сохраняем текущее состояние
         const wasPaused = video.paused;
         const currentTime = video.currentTime;
 
-        // Проверяем доступность времени в буфере
-        let seekTime = time;
+        // Проверяем доступность времени
         let isBuffered = false;
         if (video.buffered.length > 0) {
             for (let i = 0; i < video.buffered.length; i++) {
-                const start = video.buffered.start(i);
-                const end = video.buffered.end(i);
-                if (time >= start && time <= end) {
+                if (time >= video.buffered.start(i) && time <= video.buffered.end(i)) {
                     isBuffered = true;
                     break;
                 }
             }
         }
 
-        // Если время не в буфере, используем ближайшее доступное
-        if (!isBuffered && video.buffered.length > 0) {
-            const lastBuffer = video.buffered.end(video.buffered.length - 1);
-            seekTime = Math.min(time, Math.max(0, lastBuffer - 0.1));
+        if (!isBuffered) {
+            // Используем ближайшее загруженное время
+            if (video.buffered.length > 0) {
+                time = Math.min(time, video.buffered.end(video.buffered.length - 1) - 0.1);
+            } else {
+                time = video.currentTime;
+            }
         }
 
-        // Если все еще недоступно, используем текущее время
-        if (isNaN(seekTime) || seekTime < 0) {
-            seekTime = video.currentTime;
-        }
+        if (time < 0) time = 0;
 
-        const captureFrame = () => {
+        const capture = () => {
             try {
                 const tempCanvas = document.createElement('canvas');
                 tempCanvas.width = canvas.width;
                 tempCanvas.height = canvas.height;
                 const tempCtx = tempCanvas.getContext('2d');
                 tempCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.7);
+                const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.6);
                 
-                // Сохраняем в кэш
-                thumbCache.set(cacheKey, dataUrl);
-                
-                // Отображаем
                 const img = new Image();
                 img.onload = () => {
                     canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                    if (callback) callback();
                 };
                 img.src = dataUrl;
             } catch (e) {
-                console.warn('Capture error:', e);
-                if (callback) callback();
+                // Игнорируем ошибки
             }
         };
 
-        // Если уже на нужной позиции
-        if (Math.abs(video.currentTime - seekTime) < 0.05) {
-            captureFrame();
+        if (Math.abs(video.currentTime - time) < 0.05) {
+            capture();
             return;
         }
 
-        // Перематываем и захватываем
         const onSeeked = () => {
             video.removeEventListener('seeked', onSeeked);
-            captureFrame();
-            // Возвращаем исходное состояние
+            capture();
             if (!wasPaused) {
                 video.play().catch(() => {});
             }
         };
 
         video.addEventListener('seeked', onSeeked);
-        video.currentTime = seekTime;
+        video.currentTime = time;
     }
 
-    // === ПРОГРЕСС-БАР С ПРЕВЬЮ (ОПТИМИЗИРОВАННАЯ ВЕРСИЯ) ===
+    // === ПРОГРЕСС-БАР ===
     function updateProgress(e) {
         const rect = progressBar.getBoundingClientRect();
         let x = (e.clientX || e.touches?.[0]?.clientX || 0) - rect.left;
@@ -859,36 +735,26 @@
         const percent = x / rect.width;
         const time = percent * video.duration;
 
-        if (!isNaN(time) && video.duration > 0 && !isSeeking) {
-            // Обновляем прогресс-бар
+        if (!isNaN(time) && video.duration > 0) {
             progressFill.style.width = percent * 100 + '%';
-
-            // Обновляем время в превью
             previewTime.textContent = formatTime(time);
 
-            // Позиционируем тултип
             const tooltipX = Math.max(10, Math.min(x, rect.width - 80));
             previewTooltip.style.left = tooltipX + 'px';
 
-            // Показываем превью только если не перематываем
-            clearTimeout(previewFrameTimeout);
-            previewFrameTimeout = setTimeout(() => {
-                if (!isSeeking) {
-                    capturePreviewFrame(time, previewCanvas);
-                }
-            }, 100);
+            clearTimeout(previewTimeout);
+            previewTimeout = setTimeout(() => {
+                if (!isDragging) return;
+                capturePreview(time, previewCanvas);
+            }, 150);
         }
     }
 
     function startDrag(e) {
         isDragging = true;
         wasPlaying = !video.paused;
-        isSeeking = true;
-        
-        // Останавливаем видео во время перетаскивания
         video.pause();
         previewTooltip.classList.add('show');
-        
         updateProgress(e);
     }
 
@@ -902,9 +768,8 @@
     function endDrag(e) {
         if (isDragging) {
             isDragging = false;
-            isSeeking = false;
             previewTooltip.classList.remove('show');
-            clearTimeout(previewFrameTimeout);
+            clearTimeout(previewTimeout);
 
             const rect = progressBar.getBoundingClientRect();
             let x = (e.clientX || e.changedTouches?.[0]?.clientX || 0) - rect.left;
@@ -917,7 +782,6 @@
                 progressFill.style.width = percent * 100 + '%';
             }
 
-            // Возвращаем воспроизведение если оно было
             if (wasPlaying) {
                 video.play().catch(() => {});
                 centerPlay.classList.remove('show');
@@ -929,12 +793,12 @@
         }
     }
 
-    // Мышь
+    // События мыши
     progressBar.addEventListener('mousedown', startDrag);
     document.addEventListener('mousemove', moveDrag);
     document.addEventListener('mouseup', endDrag);
 
-    // Тач
+    // События тач
     progressBar.addEventListener('touchstart', (e) => {
         e.preventDefault();
         startDrag(e);
@@ -954,43 +818,38 @@
     });
 
     // === ЗАГРУЗКА ПРЕВЬЮ ДЛЯ ТАЙМКОДОВ ===
-    function loadThumbnails() {
+    function loadTimelineThumbs() {
         const items = timelineMenu.querySelectorAll('.timeline-item');
-        items.forEach(item => {
+        items.forEach((item, index) => {
             const time = parseFloat(item.dataset.time);
             const canvas = item.querySelector('.thumb-canvas');
             if (canvas && !isNaN(time)) {
-                // Загружаем превью с задержкой
                 setTimeout(() => {
-                    capturePreviewFrame(time, canvas);
-                }, 1000);
+                    capturePreview(time, canvas);
+                }, 500 + index * 200);
             }
         });
     }
 
-    // Загружаем превью после загрузки видео
     video.addEventListener('loadedmetadata', () => {
-        setTimeout(loadThumbnails, 500);
+        setTimeout(loadTimelineThumbs, 1000);
     });
 
-    // Если видео уже загружено
     if (video.readyState >= 1) {
-        setTimeout(loadThumbnails, 500);
+        setTimeout(loadTimelineThumbs, 1000);
     }
 
-    // === СОБЫТИЯ ===
+    // === ОСНОВНЫЕ СОБЫТИЯ ===
     wrapper.addEventListener('click', (e) => {
         if (e.target.closest('button') || e.target.closest('.center-play') || 
-            e.target.closest('.speed-dropdown') || e.target.closest('.timeline-dropdown') ||
-            e.target.closest('.progress-bar') || e.target.closest('.timeline-item')) {
+            e.target.closest('.timeline-dropdown') || e.target.closest('.progress-bar') ||
+            e.target.closest('.timeline-item')) {
             return;
         }
         toggleControls();
     });
 
-    wrapper.addEventListener('mouseenter', () => {
-        showControls();
-    });
+    wrapper.addEventListener('mouseenter', showControls);
 
     wrapper.addEventListener('mouseleave', () => {
         if (!video.paused && !isDragging) {
@@ -1027,7 +886,7 @@
         const total = formatTime(video.duration);
         timeDisplay.textContent = `${current} / ${total}`;
 
-        if (video.duration > 0 && !isDragging && !isSeeking) {
+        if (video.duration > 0 && !isDragging) {
             const percent = (video.currentTime / video.duration) * 100;
             progressFill.style.width = percent + '%';
         }
@@ -1044,13 +903,11 @@
     timelineBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         timelineMenu.classList.toggle('show');
-        // Загружаем превью если еще не загружены
-        loadThumbnails();
+        loadTimelineThumbs();
     });
 
     document.addEventListener('click', () => {
         timelineMenu.classList.remove('show');
-        speedMenu.classList.remove('show');
     });
 
     timelineMenu.querySelectorAll('.timeline-item').forEach(item => {
@@ -1061,32 +918,8 @@
                 video.currentTime = time;
                 progressFill.style.width = (time / video.duration) * 100 + '%';
                 showControls();
-                if (!video.paused) {
-                    video.play().catch(() => {});
-                }
             }
             timelineMenu.classList.remove('show');
-        });
-    });
-
-    // === СКОРОСТЬ ===
-    speedBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        speedMenu.classList.toggle('show');
-    });
-
-    speedMenu.querySelectorAll('button').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const speed = parseFloat(btn.dataset.speed);
-            video.playbackRate = speed;
-            speedBtn.textContent = speed + 'x';
-
-            speedMenu.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            speedMenu.classList.remove('show');
-            showControls();
         });
     });
 
@@ -1097,24 +930,14 @@
                 playerContainer.requestFullscreen();
             } else if (playerContainer.webkitRequestFullscreen) {
                 playerContainer.webkitRequestFullscreen();
-            } else if (playerContainer.msRequestFullscreen) {
-                playerContainer.msRequestFullscreen();
             }
-            try {
-                screen.orientation?.lock('landscape');
-            } catch(e) {}
             fsIcon.setAttribute('d', 'M5,16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6,11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z');
         } else {
             if (document.exitFullscreen) {
                 document.exitFullscreen();
             } else if (document.webkitExitFullscreen) {
                 document.webkitExitFullscreen();
-            } else if (document.msExitFullscreen) {
-                document.msExitFullscreen();
             }
-            try {
-                screen.orientation?.unlock();
-            } catch(e) {}
             fsIcon.setAttribute('d', 'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z');
         }
         showControls();
@@ -1152,16 +975,9 @@
         if (e.key === 'f') {
             toggleFullscreen();
         }
-        if (e.key === 'ArrowRight') {
-            e.preventDefault();
-            video.currentTime = Math.min(video.currentTime + 5, video.duration);
-        }
-        if (e.key === 'ArrowLeft') {
-            e.preventDefault();
-            video.currentTime = Math.max(video.currentTime - 5, 0);
-        }
     });
 
+    // Показать контролы при старте
     setTimeout(() => {
         showControls();
     }, 500);
