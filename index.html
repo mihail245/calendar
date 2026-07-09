@@ -3,58 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HubPremium - Реальные Видео</title>
+    <title>Кастомный плеер</title>
     <style>
         * {
-            box-sizing: border-box;
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
         }
         body {
-            background-color: #0f0f0f;
-            color: #ffffff;
+            background: #0f0f0f;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
             font-family: Arial, sans-serif;
         }
-        header {
-            background-color: #1a1a1a;
-            padding: 15px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 2px solid #ff9900;
-        }
-        .logo {
-            font-size: 24px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-        .logo span {
-            background-color: #ff9900;
-            color: #000000;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 4px;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 20px auto;
-            padding: 0 15px;
-        }
-        .video-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 20px;
-        }
-        .video-card {
-            background-color: #1a1a1a;
-            border-radius: 6px;
-            overflow: hidden;
+        .player-container {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.8);
         }
         .video-wrapper {
             position: relative;
             width: 100%;
-            padding-top: 56.25%; /* 16:9 Aspect Ratio */
-            background-color: #000;
+            padding-top: 56.25%;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
         }
         .video-wrapper video {
             position: absolute;
@@ -62,47 +40,208 @@
             left: 0;
             width: 100%;
             height: 100%;
+            display: block;
+            background: #000;
+        }
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            background: #2a2a2a;
+            padding: 12px 16px;
+            border-radius: 8px;
+        }
+        .controls button {
+            background: #ff9900;
             border: none;
-        }
-        .video-info {
-            padding: 12px;
-        }
-        .video-title {
-            font-size: 14px;
+            color: #000;
             font-weight: bold;
-            margin-bottom: 6px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: 0.2s;
+            white-space: nowrap;
         }
-        .video-stats {
-            font-size: 12px;
-            color: #aaaaaa;
+        .controls button:hover {
+            background: #ffaa33;
+            transform: scale(1.05);
+        }
+        .controls button.secondary {
+            background: #444;
+            color: #fff;
+        }
+        .controls button.secondary:hover {
+            background: #666;
+        }
+        .controls .speed-label {
+            color: #fff;
+            font-size: 14px;
+            margin-left: 5px;
+            background: #333;
+            padding: 4px 10px;
+            border-radius: 4px;
+            min-width: 45px;
+            text-align: center;
+        }
+        .controls .time-display {
+            color: #aaa;
+            font-size: 14px;
+            margin-left: auto;
+            font-family: monospace;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #444;
+            border-radius: 3px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            position: relative;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #ff9900;
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.1s;
+        }
+        @media (max-width: 600px) {
+            .controls button {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
         }
     </style>
 </head>
 <body>
 
-    <header>
-        <div class="logo">Hub<span>PREMIUM</span></div>
-    </header>
-
-    <div class="container">
-        <div class="video-grid">
-            
-            <!-- Плеер 1 -->
-            <div class="video-card">
-                <div class="video-wrapper">
-                    <!-- Вставлен рабочий стрим-поток с токеном авторизации -->
-                    <video controls preload="metadata">
-                        <source src="https://cs4.vps-vids.com/vids738930/sexstud27873.mp4?hash=209a80d41d94eff5a0889a93e3c674ba&expires=1783631009&ip=77.220.50.105" type="video/mp4">
-                    </video>
-                </div>
-                <div class="video-info">
-                    <div class="video-title">Кайф подруга парнем поделилась сиксом нереално насладилась</div>
-                    <div class="video-stats">Потоковое видео · Исходник cs4.vps-vids.com</div>
-                </div>
-            </div>
-
-        </div>
+<div class="player-container">
+    <div class="video-wrapper">
+        <video id="myVideo" preload="metadata">
+            <!-- Вставьте ваше видео сюда -->
+            <source src="https://cs4.vps-vids.com/vids738930/sexstud27873.mp4?hash=209a80d41d94eff5a0889a93e3c674ba&expires=1783631009&ip=77.220.50.105" type="video/mp4">
+        </video>
     </div>
+
+    <!-- Прогресс-бар -->
+    <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <!-- Кнопки управления -->
+    <div class="controls">
+        <button id="playPauseBtn">▶ Воспроизвести</button>
+        <button class="secondary" id="rewindBtn">⏪ -10с</button>
+        <button class="secondary" id="forwardBtn">+10с ⏩</button>
+        
+        <button class="secondary" id="speedBtn">Скорость</button>
+        <span class="speed-label" id="speedDisplay">1.0x</span>
+
+        <button class="secondary" id="fullscreenBtn">⛶ На весь</button>
+        <span class="time-display" id="timeDisplay">00:00 / 00:00</span>
+    </div>
+</div>
+
+<script>
+    const video = document.getElementById('myVideo');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const rewindBtn = document.getElementById('rewindBtn');
+    const forwardBtn = document.getElementById('forwardBtn');
+    const speedBtn = document.getElementById('speedBtn');
+    const speedDisplay = document.getElementById('speedDisplay');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+
+    // === Плей / Пауза ===
+    playPauseBtn.addEventListener('click', () => {
+        if (video.paused) {
+            video.play();
+            playPauseBtn.textContent = '⏸ Пауза';
+        } else {
+            video.pause();
+            playPauseBtn.textContent = '▶ Воспроизвести';
+        }
+    });
+
+    // Обновляем кнопку при клике на само видео
+    video.addEventListener('click', () => {
+        if (video.paused) {
+            video.play();
+            playPauseBtn.textContent = '⏸ Пауза';
+        } else {
+            video.pause();
+            playPauseBtn.textContent = '▶ Воспроизвести';
+        }
+    });
+
+    // === Перемотка ===
+    rewindBtn.addEventListener('click', () => {
+        video.currentTime = Math.max(0, video.currentTime - 10);
+    });
+
+    forwardBtn.addEventListener('click', () => {
+        video.currentTime = Math.min(video.duration, video.currentTime + 10);
+    });
+
+    // === Смена скорости (циклично) ===
+    const speeds = [0.5, 1.0, 1.5, 2.0];
+    let speedIndex = 1; // по умолчанию 1.0x
+
+    speedBtn.addEventListener('click', () => {
+        speedIndex = (speedIndex + 1) % speeds.length;
+        const newSpeed = speeds[speedIndex];
+        video.playbackRate = newSpeed;
+        speedDisplay.textContent = newSpeed.toFixed(1) + 'x';
+    });
+
+    // === Полный экран ===
+    fullscreenBtn.addEventListener('click', () => {
+        const container = document.querySelector('.player-container');
+        if (!document.fullscreenElement) {
+            container.requestFullscreen?.() || container.webkitRequestFullscreen?.();
+        } else {
+            document.exitFullscreen?.() || document.webkitExitFullscreen?.();
+        }
+    });
+
+    // === Обновление времени и прогресс-бара ===
+    video.addEventListener('timeupdate', () => {
+        const current = formatTime(video.currentTime);
+        const total = formatTime(video.duration);
+        timeDisplay.textContent = `${current} / ${total}`;
+
+        // Прогресс
+        if (video.duration) {
+            const percent = (video.currentTime / video.duration) * 100;
+            progressFill.style.width = percent + '%';
+        }
+    });
+
+    // === Клик по прогресс-бару ===
+    progressBar.addEventListener('click', (e) => {
+        const rect = progressBar.getBoundingClientRect();
+        const clickX = (e.clientX - rect.left) / rect.width;
+        video.currentTime = clickX * video.duration;
+    });
+
+    // === Форматирование времени ===
+    function formatTime(seconds) {
+        if (isNaN(seconds)) return '00:00';
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    // === Сброс кнопки при окончании ===
+    video.addEventListener('ended', () => {
+        playPauseBtn.textContent = '▶ Воспроизвести';
+    });
+</script>
 
 </body>
 </html>
