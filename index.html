@@ -38,6 +38,7 @@
             padding-top: 56.25%;
             background: #000;
             cursor: default;
+            -webkit-tap-highlight-color: transparent;
         }
         .video-wrapper video {
             position: absolute;
@@ -49,6 +50,8 @@
             background: #000;
             object-fit: cover;
             pointer-events: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         .overlay {
@@ -82,6 +85,12 @@
             backdrop-filter: blur(4px);
             border: 2px solid rgba(255,255,255,0.2);
             cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            outline: none;
+        }
+        .center-play:focus {
+            outline: none;
         }
         .center-play.show {
             opacity: 1;
@@ -91,6 +100,7 @@
             height: 36px;
             fill: #fff;
             margin-left: 4px;
+            pointer-events: none;
         }
 
         .controls {
@@ -119,6 +129,7 @@
             position: relative;
             margin-bottom: 10px;
             transition: height 0.2s;
+            -webkit-tap-highlight-color: transparent;
         }
         .progress-bar:hover {
             height: 6px;
@@ -146,7 +157,6 @@
             opacity: 1;
         }
 
-        /* Превью при перемотке */
         .preview-tooltip {
             display: none;
             position: absolute;
@@ -155,7 +165,7 @@
             width: 160px;
             height: 90px;
             background: #000;
-            border: 2px solid #fff;
+            border: 2px solid rgba(255,255,255,0.8);
             border-radius: 4px;
             overflow: hidden;
             z-index: 15;
@@ -169,6 +179,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            background: #000;
         }
         .preview-tooltip .preview-time {
             position: absolute;
@@ -198,14 +209,26 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            outline: none;
+            user-select: none;
+        }
+        .controls-bottom button:focus {
+            outline: none;
         }
         .controls-bottom button:hover {
             color: #ff0000;
+        }
+        .controls-bottom button:active {
+            color: #ff0000;
+            transform: scale(0.92);
         }
         .controls-bottom button svg {
             width: 24px;
             height: 24px;
             fill: currentColor;
+            pointer-events: none;
         }
         .time-display {
             color: #fff;
@@ -213,6 +236,7 @@
             font-family: monospace;
             margin: 0 4px;
             min-width: 70px;
+            user-select: none;
         }
         .spacer {
             flex: 1;
@@ -227,10 +251,19 @@
             color: #fff !important;
             min-width: 44px;
             text-align: center;
+            -webkit-tap-highlight-color: transparent !important;
+            outline: none !important;
+            user-select: none !important;
         }
         .speed-btn:hover {
             background: rgba(255,255,255,0.2) !important;
             color: #ff0000 !important;
+        }
+        .speed-btn:focus {
+            outline: none !important;
+        }
+        .speed-btn:active {
+            transform: scale(0.92);
         }
 
         .speed-dropdown {
@@ -264,6 +297,11 @@
             cursor: pointer;
             text-align: center;
             transition: 0.15s;
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+        }
+        .speed-dropdown .dropdown-content button:focus {
+            outline: none;
         }
         .speed-dropdown .dropdown-content button:hover {
             background: #ff0000;
@@ -274,7 +312,6 @@
             font-weight: bold;
         }
 
-        /* Кнопка таймкодов */
         .timeline-btn {
             background: rgba(255,255,255,0.08) !important;
             padding: 3px 10px !important;
@@ -283,10 +320,19 @@
             font-weight: 600;
             color: #fff !important;
             text-align: center;
+            -webkit-tap-highlight-color: transparent !important;
+            outline: none !important;
+            user-select: none !important;
         }
         .timeline-btn:hover {
             background: rgba(255,255,255,0.2) !important;
             color: #ff0000 !important;
+        }
+        .timeline-btn:focus {
+            outline: none !important;
+        }
+        .timeline-btn:active {
+            transform: scale(0.92);
         }
 
         .timeline-dropdown {
@@ -320,6 +366,11 @@
             cursor: pointer;
             text-align: left;
             transition: 0.15s;
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+        }
+        .timeline-dropdown .dropdown-content button:focus {
+            outline: none;
         }
         .timeline-dropdown .dropdown-content button:hover {
             background: #ff0000;
@@ -424,9 +475,17 @@
             padding: 8px 14px;
             border-radius: 8px;
             transition: 0.2s;
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+        }
+        .close-fs:focus {
+            outline: none;
         }
         .close-fs:hover {
             background: rgba(255,0,0,0.6);
+        }
+        .close-fs:active {
+            transform: scale(0.92);
         }
         .player-container:-webkit-full-screen .close-fs,
         .player-container:-moz-full-screen .close-fs,
@@ -479,7 +538,6 @@
                 <source src="https://cs4.vps-vids.com/vids738930/sexstud27873.mp4?hash=209a80d41d94eff5a0889a93e3c674ba&expires=1783631009&ip=77.220.50.105" type="video/mp4">
             </video>
 
-            <!-- Превью для перемотки -->
             <div class="preview-tooltip" id="previewTooltip">
                 <video id="previewVideo" muted preload="metadata"></video>
                 <div class="preview-time" id="previewTime">00:00</div>
@@ -505,7 +563,6 @@
 
                     <div class="spacer"></div>
 
-                    <!-- Кнопка таймкодов -->
                     <div class="timeline-dropdown">
                         <button class="timeline-btn" id="timelineBtn">⏱ Таймкод</button>
                         <div class="dropdown-content" id="timelineMenu">
@@ -515,7 +572,6 @@
                         </div>
                     </div>
 
-                    <!-- Кнопка скорости -->
                     <div class="speed-dropdown">
                         <button class="speed-btn" id="speedBtn">1x</button>
                         <div class="dropdown-content" id="speedMenu">
@@ -574,17 +630,17 @@
     let isControlsVisible = false;
     let isDragging = false;
 
-    // === ПОКАЗАТЬ УПРАВЛЕНИЕ ===
     function showControls() {
         controls.classList.add('show');
-        centerPlay.classList.add('show');
+        if (video.paused) {
+            centerPlay.classList.add('show');
+        }
         isControlsVisible = true;
         clearTimeout(controlsTimeout);
 
         if (!video.paused) {
             controlsTimeout = setTimeout(() => {
                 controls.classList.remove('show');
-                centerPlay.classList.remove('show');
                 isControlsVisible = false;
             }, 3000);
         }
@@ -605,7 +661,6 @@
         }
     }
 
-    // === PLAY / PAUSE ===
     function togglePlay() {
         if (video.paused) {
             video.play();
@@ -629,23 +684,20 @@
         const time = percent * video.duration;
 
         if (!isNaN(time) && video.duration) {
-            // Обновляем позицию превью
             const tooltipX = Math.max(0, Math.min(x, rect.width - 80));
             previewTooltip.style.left = tooltipX + 'px';
             previewTime.textContent = formatTime(time);
 
-            // Показываем превью
             if (!isDragging) {
                 previewTooltip.classList.add('show');
-                // Загружаем кадр
                 if (previewVideo.src !== video.src) {
                     previewVideo.src = video.src;
+                    previewVideo.load();
                 }
                 previewVideo.currentTime = time;
                 previewVideo.play().catch(() => {});
             }
 
-            // Обновляем прогресс
             progressFill.style.width = percent * 100 + '%';
         }
     }
@@ -655,6 +707,7 @@
         previewTooltip.classList.add('show');
         if (previewVideo.src !== video.src) {
             previewVideo.src = video.src;
+            previewVideo.load();
         }
         updateProgress(e);
         video.pause();
@@ -684,7 +737,6 @@
                 progressFill.style.width = percent * 100 + '%';
             }
 
-            // Если видео было на паузе — оставляем паузу
             if (video.paused) {
                 centerPlay.classList.add('show');
                 showControls();
@@ -695,12 +747,10 @@
         }
     }
 
-    // События для прогресс-бара (мышь)
     progressBar.addEventListener('mousedown', startDrag);
     document.addEventListener('mousemove', moveDrag);
     document.addEventListener('mouseup', endDrag);
 
-    // События для прогресс-бара (touch)
     progressBar.addEventListener('touchstart', (e) => {
         e.preventDefault();
         startDrag(e);
