@@ -539,7 +539,7 @@
             </video>
 
             <div class="preview-tooltip" id="previewTooltip">
-                <video id="previewVideo" muted preload="metadata"></video>
+                <video id="previewVideo" muted preload="auto"></video>
                 <div class="preview-time" id="previewTime">00:00</div>
             </div>
 
@@ -675,7 +675,7 @@
         }
     }
 
-    // === ПРОГРЕСС-БАР С ПРЕВЬЮ ===
+    // === ПРОГРЕСС-БАР С ПРЕВЬЮ И МГНОВЕННОЙ ПЕРЕМОТКОЙ ===
     function updateProgress(e) {
         const rect = progressBar.getBoundingClientRect();
         let x = (e.clientX || e.touches?.[0]?.clientX || 0) - rect.left;
@@ -684,21 +684,25 @@
         const time = percent * video.duration;
 
         if (!isNaN(time) && video.duration) {
+            // Мгновенно перематываем видео
+            video.currentTime = time;
+            
+            // Обновляем прогресс-бар
+            progressFill.style.width = percent * 100 + '%';
+
+            // Обновляем превью
             const tooltipX = Math.max(0, Math.min(x, rect.width - 80));
             previewTooltip.style.left = tooltipX + 'px';
             previewTime.textContent = formatTime(time);
 
-            if (!isDragging) {
-                previewTooltip.classList.add('show');
-                if (previewVideo.src !== video.src) {
-                    previewVideo.src = video.src;
-                    previewVideo.load();
-                }
-                previewVideo.currentTime = time;
-                previewVideo.play().catch(() => {});
+            if (previewVideo.src !== video.src) {
+                previewVideo.src = video.src;
+                previewVideo.load();
             }
-
-            progressFill.style.width = percent * 100 + '%';
+            
+            // Показываем кадр из видео
+            previewVideo.currentTime = time;
+            previewVideo.play().catch(() => {});
         }
     }
 
@@ -709,8 +713,8 @@
             previewVideo.src = video.src;
             previewVideo.load();
         }
-        updateProgress(e);
         video.pause();
+        updateProgress(e);
     }
 
     function moveDrag(e) {
@@ -747,10 +751,12 @@
         }
     }
 
+    // Мышь
     progressBar.addEventListener('mousedown', startDrag);
     document.addEventListener('mousemove', moveDrag);
     document.addEventListener('mouseup', endDrag);
 
+    // Тач
     progressBar.addEventListener('touchstart', (e) => {
         e.preventDefault();
         startDrag(e);
