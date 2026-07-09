@@ -146,6 +146,43 @@
             opacity: 1;
         }
 
+        /* Превью при перемотке */
+        .preview-tooltip {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 160px;
+            height: 90px;
+            background: #000;
+            border: 2px solid #fff;
+            border-radius: 4px;
+            overflow: hidden;
+            z-index: 15;
+            transform: translateX(-50%);
+            pointer-events: none;
+        }
+        .preview-tooltip.show {
+            display: block;
+        }
+        .preview-tooltip video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .preview-tooltip .preview-time {
+            position: absolute;
+            bottom: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
         .controls-bottom {
             display: flex;
             align-items: center;
@@ -235,6 +272,63 @@
         .speed-dropdown .dropdown-content button.active {
             color: #ff0000;
             font-weight: bold;
+        }
+
+        /* Кнопка таймкодов */
+        .timeline-btn {
+            background: rgba(255,255,255,0.08) !important;
+            padding: 3px 10px !important;
+            border-radius: 4px !important;
+            font-size: 13px;
+            font-weight: 600;
+            color: #fff !important;
+            text-align: center;
+        }
+        .timeline-btn:hover {
+            background: rgba(255,255,255,0.2) !important;
+            color: #ff0000 !important;
+        }
+
+        .timeline-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .timeline-dropdown .dropdown-content {
+            display: none;
+            position: absolute;
+            bottom: 110%;
+            right: 0;
+            background: rgba(30,30,30,0.95);
+            border-radius: 8px;
+            min-width: 160px;
+            box-shadow: 0 4px 30px rgba(0,0,0,0.8);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            padding: 4px 0;
+        }
+        .timeline-dropdown .dropdown-content.show {
+            display: block;
+        }
+        .timeline-dropdown .dropdown-content button {
+            display: block;
+            width: 100%;
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            color: #ddd;
+            font-size: 13px;
+            cursor: pointer;
+            text-align: left;
+            transition: 0.15s;
+        }
+        .timeline-dropdown .dropdown-content button:hover {
+            background: #ff0000;
+            color: #fff;
+        }
+        .timeline-dropdown .dropdown-content button .time-label {
+            color: #ff0000;
+            font-weight: bold;
+            margin-right: 8px;
         }
 
         .video-info {
@@ -366,6 +460,13 @@
                 width: 28px;
                 height: 28px;
             }
+            .preview-tooltip {
+                width: 120px;
+                height: 68px;
+            }
+            .timeline-dropdown .dropdown-content {
+                min-width: 140px;
+            }
         }
     </style>
 </head>
@@ -377,6 +478,12 @@
             <video id="myVideo" preload="metadata" playsinline>
                 <source src="https://cs4.vps-vids.com/vids738930/sexstud27873.mp4?hash=209a80d41d94eff5a0889a93e3c674ba&expires=1783631009&ip=77.220.50.105" type="video/mp4">
             </video>
+
+            <!-- Превью для перемотки -->
+            <div class="preview-tooltip" id="previewTooltip">
+                <video id="previewVideo" muted preload="metadata"></video>
+                <div class="preview-time" id="previewTime">00:00</div>
+            </div>
 
             <div class="overlay" id="overlay"></div>
 
@@ -398,6 +505,17 @@
 
                     <div class="spacer"></div>
 
+                    <!-- Кнопка таймкодов -->
+                    <div class="timeline-dropdown">
+                        <button class="timeline-btn" id="timelineBtn">⏱ Таймкод</button>
+                        <div class="dropdown-content" id="timelineMenu">
+                            <button data-time="213"><span class="time-label">3:33</span> майнит</button>
+                            <button data-time="416"><span class="time-label">6:56</span> глючит</button>
+                            <button data-time="1005"><span class="time-label">16:45</span> байнит</button>
+                        </div>
+                    </div>
+
+                    <!-- Кнопка скорости -->
                     <div class="speed-dropdown">
                         <button class="speed-btn" id="speedBtn">1x</button>
                         <div class="dropdown-content" id="speedMenu">
@@ -442,13 +560,19 @@
     const progressFill = document.getElementById('progressFill');
     const speedBtn = document.getElementById('speedBtn');
     const speedMenu = document.getElementById('speedMenu');
+    const timelineBtn = document.getElementById('timelineBtn');
+    const timelineMenu = document.getElementById('timelineMenu');
     const fullscreenBtn = document.getElementById('fullscreenBtn');
     const closeFsBtn = document.getElementById('closeFsBtn');
     const fsIcon = document.getElementById('fsIcon');
     const videoInfo = document.getElementById('videoInfo');
+    const previewTooltip = document.getElementById('previewTooltip');
+    const previewVideo = document.getElementById('previewVideo');
+    const previewTime = document.getElementById('previewTime');
 
     let controlsTimeout = null;
     let isControlsVisible = false;
+    let isDragging = false;
 
     // === ПОКАЗАТЬ УПРАВЛЕНИЕ ===
     function showControls() {
@@ -466,7 +590,6 @@
         }
     }
 
-    // === СКРЫТЬ УПРАВЛЕНИЕ ===
     function hideControls() {
         controls.classList.remove('show');
         centerPlay.classList.remove('show');
@@ -474,7 +597,6 @@
         clearTimeout(controlsTimeout);
     }
 
-    // === ПЕРЕКЛЮЧИТЬ УПРАВЛЕНИЕ (при тапе по пустому месту) ===
     function toggleControls() {
         if (isControlsVisible) {
             hideControls();
@@ -498,70 +620,155 @@
         }
     }
 
+    // === ПРОГРЕСС-БАР С ПРЕВЬЮ ===
+    function updateProgress(e) {
+        const rect = progressBar.getBoundingClientRect();
+        let x = (e.clientX || e.touches?.[0]?.clientX || 0) - rect.left;
+        x = Math.max(0, Math.min(x, rect.width));
+        const percent = x / rect.width;
+        const time = percent * video.duration;
+
+        if (!isNaN(time) && video.duration) {
+            // Обновляем позицию превью
+            const tooltipX = Math.max(0, Math.min(x, rect.width - 80));
+            previewTooltip.style.left = tooltipX + 'px';
+            previewTime.textContent = formatTime(time);
+
+            // Показываем превью
+            if (!isDragging) {
+                previewTooltip.classList.add('show');
+                // Загружаем кадр
+                if (previewVideo.src !== video.src) {
+                    previewVideo.src = video.src;
+                }
+                previewVideo.currentTime = time;
+                previewVideo.play().catch(() => {});
+            }
+
+            // Обновляем прогресс
+            progressFill.style.width = percent * 100 + '%';
+        }
+    }
+
+    function startDrag(e) {
+        isDragging = true;
+        previewTooltip.classList.add('show');
+        if (previewVideo.src !== video.src) {
+            previewVideo.src = video.src;
+        }
+        updateProgress(e);
+        video.pause();
+    }
+
+    function moveDrag(e) {
+        if (isDragging) {
+            e.preventDefault();
+            updateProgress(e);
+        }
+    }
+
+    function endDrag(e) {
+        if (isDragging) {
+            isDragging = false;
+            previewTooltip.classList.remove('show');
+            previewVideo.pause();
+
+            const rect = progressBar.getBoundingClientRect();
+            let x = (e.clientX || e.changedTouches?.[0]?.clientX || 0) - rect.left;
+            x = Math.max(0, Math.min(x, rect.width));
+            const percent = x / rect.width;
+            const time = percent * video.duration;
+
+            if (!isNaN(time) && video.duration) {
+                video.currentTime = time;
+                progressFill.style.width = percent * 100 + '%';
+            }
+
+            // Если видео было на паузе — оставляем паузу
+            if (video.paused) {
+                centerPlay.classList.add('show');
+                showControls();
+            } else {
+                video.play();
+                showControls();
+            }
+        }
+    }
+
+    // События для прогресс-бара (мышь)
+    progressBar.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', moveDrag);
+    document.addEventListener('mouseup', endDrag);
+
+    // События для прогресс-бара (touch)
+    progressBar.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        startDrag(e);
+    });
+    document.addEventListener('touchmove', (e) => {
+        if (isDragging) {
+            e.preventDefault();
+            moveDrag(e);
+        }
+    }, { passive: false });
+    document.addEventListener('touchend', (e) => {
+        if (isDragging) {
+            endDrag(e);
+        }
+    });
+
     // === СОБЫТИЯ ===
-    // Тап по пустому месту видео — переключаем интерфейс
     wrapper.addEventListener('click', (e) => {
-        // Если кликнули по кнопке или по центру Play — игнорируем
-        if (e.target.closest('button') || e.target.closest('.center-play') || e.target.closest('.speed-dropdown')) {
+        if (e.target.closest('button') || e.target.closest('.center-play') || 
+            e.target.closest('.speed-dropdown') || e.target.closest('.timeline-dropdown')) {
             return;
         }
         toggleControls();
     });
 
-    // Наведение мыши (для ПК)
     wrapper.addEventListener('mouseenter', () => {
         showControls();
     });
 
     wrapper.addEventListener('mouseleave', () => {
-        if (!video.paused) {
+        if (!video.paused && !isDragging) {
             clearTimeout(controlsTimeout);
             controlsTimeout = setTimeout(() => {
-                if (!video.paused) {
+                if (!video.paused && !isDragging) {
                     hideControls();
                 }
             }, 2000);
         }
     });
 
-    // Кнопка Play/Pause (слева снизу)
     playPauseBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         togglePlay();
         showControls();
     });
 
-    // Центральная кнопка Play
     centerPlay.addEventListener('click', (e) => {
         e.stopPropagation();
         togglePlay();
         showControls();
     });
 
-    // Когда видео закончилось
     video.addEventListener('ended', () => {
         playIcon.setAttribute('d', 'M5,3 L19,12 L5,21 Z');
         centerPlay.classList.add('show');
         showControls();
     });
 
-    // === ВРЕМЯ И ПРОГРЕСС ===
+    // === ВРЕМЯ ===
     video.addEventListener('timeupdate', () => {
         const current = formatTime(video.currentTime);
         const total = formatTime(video.duration);
         timeDisplay.textContent = `${current} / ${total}`;
 
-        if (video.duration) {
+        if (video.duration && !isDragging) {
             const percent = (video.currentTime / video.duration) * 100;
             progressFill.style.width = percent + '%';
         }
-    });
-
-    progressBar.addEventListener('click', (e) => {
-        const rect = progressBar.getBoundingClientRect();
-        const clickX = (e.clientX - rect.left) / rect.width;
-        video.currentTime = clickX * video.duration;
-        showControls();
     });
 
     function formatTime(seconds) {
@@ -571,14 +778,37 @@
         return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     }
 
+    // === ТАЙМКОДЫ ===
+    timelineBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        timelineMenu.classList.toggle('show');
+    });
+
+    document.addEventListener('click', () => {
+        timelineMenu.classList.remove('show');
+        speedMenu.classList.remove('show');
+    });
+
+    timelineMenu.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const time = parseFloat(btn.dataset.time);
+            if (!isNaN(time) && video.duration) {
+                video.currentTime = time;
+                progressFill.style.width = (time / video.duration) * 100 + '%';
+                showControls();
+                if (video.paused) {
+                    centerPlay.classList.add('show');
+                }
+            }
+            timelineMenu.classList.remove('show');
+        });
+    });
+
     // === СКОРОСТЬ ===
     speedBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         speedMenu.classList.toggle('show');
-    });
-
-    document.addEventListener('click', () => {
-        speedMenu.classList.remove('show');
     });
 
     speedMenu.querySelectorAll('button').forEach(btn => {
@@ -653,7 +883,6 @@
         }
     });
 
-    // === СТАРТ: показываем управление ===
     setTimeout(() => {
         showControls();
     }, 500);
