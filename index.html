@@ -4,566 +4,108 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Видео плеер</title>
-    <!-- Подключаем Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            background: #0f0f0f;
-            color: #fff;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            padding: 20px;
-            min-height: 100vh;
-        }
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-        h1 {
-            font-size: 24px;
-            margin-bottom: 20px;
-            font-weight: 400;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0f0f0f; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; min-height: 100vh; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1 { font-size: 24px; margin-bottom: 20px; font-weight: 400; }
 
-        /* Главный экран (список) */
-        #mainScreen {
-            display: block;
-        }
-        .video-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-            gap: 16px;
-        }
-        .video-card {
-            background: #1a1a1a;
-            border-radius: 12px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: transform 0.2s, background 0.2s;
-            border: 1px solid #2a2a2a;
-        }
-        .video-card:hover {
-            transform: scale(1.02);
-            background: #222;
-            border-color: #ff0000;
-        }
-        .video-card:active {
-            transform: scale(0.97);
-        }
-        .video-card .thumbnail {
-            width: 100%;
-            aspect-ratio: 16/9;
-            background: #111;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 48px;
-            color: #444;
-        }
-        .video-card .info {
-            padding: 12px 14px;
-        }
-        .video-card .title {
-            font-size: 15px;
-            font-weight: 500;
-            margin-bottom: 4px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .video-card .meta {
-            font-size: 13px;
-            color: #aaa;
-        }
-        .video-card .timeline-badge {
-            display: inline-block;
-            background: #2a2a2a;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            margin-top: 6px;
-            color: #ff0000;
-        }
-        #loadingMessage {
-            color: #aaa;
-            text-align: center;
-            padding: 40px;
-            font-size: 18px;
-        }
+        #mainScreen { display: block; }
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+        .video-card { background: #1a1a1a; border-radius: 12px; overflow: hidden; cursor: pointer; transition: transform 0.2s, background 0.2s; border: 1px solid #2a2a2a; }
+        .video-card:hover { transform: scale(1.02); background: #222; border-color: #ff0000; }
+        .video-card:active { transform: scale(0.97); }
 
-        /* Экран плеера */
-        #playerScreen {
-            display: none;
-        }
-        .back-btn {
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 16px;
-            cursor: pointer;
-            padding: 8px 0 16px 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: 0.2s;
-        }
-        .back-btn:hover {
-            color: #ff0000;
-        }
-        .back-btn svg {
-            width: 24px;
-            height: 24px;
-            fill: currentColor;
-        }
+        .video-card .thumbnail { width: 100%; aspect-ratio: 16/9; background: #111; display: flex; align-items: center; justify-content: center; font-size: 48px; color: #444; overflow: hidden; position: relative; }
+        .video-card .thumbnail canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .video-card .thumbnail .play-icon-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 48px; opacity: 0.7; text-shadow: 0 0 20px rgba(0,0,0,0.8); pointer-events: none; }
 
-        .player-container {
-            position: relative;
-            width: 100%;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        .video-wrapper {
-            position: relative;
-            width: 100%;
-            padding-top: 56.25%;
-            background: #000;
-            cursor: default;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .video-wrapper video {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: block;
-            background: #000;
-            object-fit: cover;
-            pointer-events: none;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-        .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0);
-            transition: background 0.3s;
-            pointer-events: none;
-            z-index: 2;
-        }
-        .center-play {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 68px;
-            height: 68px;
-            background: rgba(255,255,255,0.15);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 5;
-            pointer-events: auto;
-            opacity: 0;
-            transition: opacity 0.3s;
-            backdrop-filter: blur(4px);
-            border: 2px solid rgba(255,255,255,0.2);
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            outline: none;
-        }
-        .center-play.show {
-            opacity: 1;
-        }
-        .center-play svg {
-            width: 36px;
-            height: 36px;
-            fill: #fff;
-            margin-left: 4px;
-            pointer-events: none;
-        }
-        .controls {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            padding: 20px 16px 14px 16px;
-            background: linear-gradient(transparent, rgba(0,0,0,0.85));
-            z-index: 10;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-        .controls.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .progress-bar {
-            width: 100%;
-            height: 4px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 2px;
-            cursor: pointer;
-            position: relative;
-            margin-bottom: 10px;
-            transition: height 0.2s;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: none;
-        }
-        .progress-bar:hover {
-            height: 6px;
-        }
-        .progress-fill {
-            height: 100%;
-            background: #ff0000;
-            border-radius: 2px;
-            width: 0%;
-            position: relative;
-            transition: width 0.1s;
-        }
-        .progress-fill::after {
-            content: '';
-            position: absolute;
-            right: -6px;
-            top: -4px;
-            width: 12px;
-            height: 12px;
-            background: #ff0000;
-            border-radius: 50%;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        .progress-bar:hover .progress-fill::after {
-            opacity: 1;
-        }
-        .preview-tooltip {
-            display: none;
-            position: absolute;
-            bottom: 25px;
-            left: 0;
-            width: 160px;
-            height: 90px;
-            background: #000;
-            border: 2px solid rgba(255,255,255,0.8);
-            border-radius: 4px;
-            overflow: hidden;
-            z-index: 15;
-            transform: translateX(-50%);
-            pointer-events: none;
-        }
-        .preview-tooltip.show {
-            display: block;
-        }
-        .preview-tooltip canvas {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            background: #000;
-            display: block;
-        }
-        .preview-tooltip .preview-time {
-            position: absolute;
-            bottom: 4px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.7);
-            color: #fff;
-            font-size: 12px;
-            padding: 2px 8px;
-            border-radius: 3px;
-            font-family: monospace;
-        }
-        .controls-bottom {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .controls-bottom button {
-            background: none;
-            border: none;
-            color: #fff;
-            cursor: pointer;
-            padding: 4px;
-            transition: 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            -webkit-tap-highlight-color: transparent;
-            -webkit-touch-callout: none;
-            outline: none;
-            user-select: none;
-            min-width: 44px;
-            min-height: 44px;
-        }
-        .controls-bottom button:focus {
-            outline: none;
-        }
-        .controls-bottom button:hover {
-            color: #ff0000;
-        }
-        .controls-bottom button:active {
-            color: #ff0000;
-            transform: scale(0.92);
-        }
-        .controls-bottom button svg {
-            width: 24px;
-            height: 24px;
-            fill: currentColor;
-            pointer-events: none;
-        }
-        .time-display {
-            color: #fff;
-            font-size: 13px;
-            font-family: monospace;
-            margin: 0 4px;
-            min-width: 70px;
-            user-select: none;
-        }
-        .spacer {
-            flex: 1;
-        }
-        .timeline-btn {
-            background: rgba(255,255,255,0.08) !important;
-            padding: 3px 10px !important;
-            border-radius: 4px !important;
-            font-size: 13px;
-            font-weight: 600;
-            color: #fff !important;
-            text-align: center;
-            -webkit-tap-highlight-color: transparent !important;
-            outline: none !important;
-            user-select: none !important;
-        }
-        .timeline-btn:hover {
-            background: rgba(255,255,255,0.2) !important;
-            color: #ff0000 !important;
-        }
-        .timeline-btn:focus {
-            outline: none !important;
-        }
-        .timeline-btn:active {
-            transform: scale(0.92);
-        }
-        .timeline-dropdown {
-            position: relative;
-            display: inline-block;
-        }
-        .timeline-dropdown .dropdown-content {
-            display: none;
-            position: absolute;
-            bottom: 110%;
-            right: 0;
-            background: rgba(30,30,30,0.95);
-            border-radius: 8px;
-            min-width: 160px;
-            box-shadow: 0 4px 30px rgba(0,0,0,0.8);
-            overflow: hidden;
-            backdrop-filter: blur(10px);
-            padding: 4px 0;
-        }
-        .timeline-dropdown .dropdown-content.show {
-            display: block;
-        }
-        .timeline-dropdown .dropdown-content button {
-            display: block;
-            width: 100%;
-            padding: 8px 16px;
-            background: transparent;
-            border: none;
-            color: #ddd;
-            font-size: 13px;
-            cursor: pointer;
-            text-align: left;
-            transition: 0.15s;
-            -webkit-tap-highlight-color: transparent;
-            outline: none;
-            min-height: 40px;
-        }
-        .timeline-dropdown .dropdown-content button:focus {
-            outline: none;
-        }
-        .timeline-dropdown .dropdown-content button:hover {
-            background: #ff0000;
-            color: #fff;
-        }
-        .timeline-dropdown .dropdown-content button .time-label {
-            color: #ff0000;
-            font-weight: bold;
-            margin-right: 8px;
-        }
-        .video-info {
-            margin-top: 16px;
-        }
-        .video-title {
-            font-size: 20px;
-            font-weight: 600;
-            line-height: 1.4;
-        }
-        .video-meta {
-            color: #aaa;
-            font-size: 14px;
-            margin-top: 6px;
-        }
-        .video-description {
-            color: #aaa;
-            font-size: 14px;
-            margin-top: 10px;
-            line-height: 1.6;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #2a2a2a;
-        }
-        .player-container:-webkit-full-screen {
-            width: 100vw !important;
-            height: 100vh !important;
-            max-width: 100% !important;
-            border-radius: 0 !important;
-            background: #000 !important;
-        }
-        .player-container:-moz-full-screen {
-            width: 100vw !important;
-            height: 100vh !important;
-            max-width: 100% !important;
-            border-radius: 0 !important;
-            background: #000 !important;
-        }
-        .player-container:fullscreen {
-            width: 100vw !important;
-            height: 100vh !important;
-            max-width: 100% !important;
-            border-radius: 0 !important;
-            background: #000 !important;
-        }
-        .player-container:-webkit-full-screen .video-wrapper {
-            padding-top: 0 !important;
-            height: 100vh !important;
-        }
-        .player-container:-moz-full-screen .video-wrapper {
-            padding-top: 0 !important;
-            height: 100vh !important;
-        }
-        .player-container:fullscreen .video-wrapper {
-            padding-top: 0 !important;
-            height: 100vh !important;
-        }
-        .player-container:-webkit-full-screen .video-wrapper video {
-            object-fit: cover;
-            width: 100vw;
-            height: 100vh;
-        }
-        .player-container:-moz-full-screen .video-wrapper video {
-            object-fit: cover;
-            width: 100vw;
-            height: 100vh;
-        }
-        .player-container:fullscreen .video-wrapper video {
-            object-fit: cover;
-            width: 100vw;
-            height: 100vh;
-        }
-        .player-container:-webkit-full-screen ~ .video-info,
-        .player-container:-moz-full-screen ~ .video-info,
-        .player-container:fullscreen ~ .video-info {
-            display: none !important;
-        }
-        .close-fs {
-            display: none;
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            z-index: 20;
-            background: rgba(0,0,0,0.6);
-            border: none;
-            color: #fff;
-            font-size: 28px;
-            cursor: pointer;
-            padding: 8px 14px;
-            border-radius: 8px;
-            transition: 0.2s;
-            -webkit-tap-highlight-color: transparent;
-            outline: none;
-        }
-        .close-fs:focus {
-            outline: none;
-        }
-        .close-fs:hover {
-            background: rgba(255,0,0,0.6);
-        }
-        .close-fs:active {
-            transform: scale(0.92);
-        }
-        .player-container:-webkit-full-screen .close-fs,
-        .player-container:-moz-full-screen .close-fs,
-        .player-container:fullscreen .close-fs {
-            display: block;
-        }
-        @media (max-width: 700px) {
-            body {
-                padding: 16px 10px;
-            }
-            .video-title {
-                font-size: 16px;
-            }
-            .video-description {
-                font-size: 13px;
-            }
-            .controls-bottom button svg {
-                width: 20px;
-                height: 20px;
-            }
-            .time-display {
-                font-size: 12px;
-                min-width: 60px;
-            }
-            .center-play {
-                width: 52px;
-                height: 52px;
-            }
-            .center-play svg {
-                width: 28px;
-                height: 28px;
-            }
-            .preview-tooltip {
-                width: 120px;
-                height: 68px;
-            }
-            .timeline-dropdown .dropdown-content {
-                min-width: 140px;
-            }
-            .controls-bottom button {
-                min-width: 38px;
-                min-height: 38px;
-                padding: 2px;
-            }
-        }
+        .video-card .info { padding: 12px 14px; }
+        .video-card .title { font-size: 15px; font-weight: 500; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .video-card .meta { font-size: 13px; color: #aaa; }
+        .video-card .timeline-badge { display: inline-block; background: #2a2a2a; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-top: 6px; color: #ff0000; }
+
+        #loadingMessage { color: #aaa; text-align: center; padding: 40px; font-size: 18px; }
+
+        #playerScreen { display: none; }
+        .back-btn { background: none; border: none; color: #fff; font-size: 16px; cursor: pointer; padding: 8px 0 16px 0; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
+        .back-btn:hover { color: #ff0000; }
+        .back-btn svg { width: 24px; height: 24px; fill: currentColor; }
+
+        .player-container { position: relative; width: 100%; background: #000; border-radius: 12px; overflow: hidden; }
+        .video-wrapper { position: relative; width: 100%; padding-top: 56.25%; background: #000; cursor: default; -webkit-tap-highlight-color: transparent; }
+        .video-wrapper video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; background: #000; object-fit: cover; pointer-events: none; -webkit-user-select: none; user-select: none; }
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0); transition: background 0.3s; pointer-events: none; z-index: 2; }
+        .center-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 68px; height: 68px; background: rgba(255,255,255,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 5; pointer-events: auto; opacity: 0; transition: opacity 0.3s; backdrop-filter: blur(4px); border: 2px solid rgba(255,255,255,0.2); cursor: pointer; -webkit-tap-highlight-color: transparent; outline: none; }
+        .center-play.show { opacity: 1; }
+        .center-play svg { width: 36px; height: 36px; fill: #fff; margin-left: 4px; pointer-events: none; }
+        .controls { position: absolute; bottom: 0; left: 0; width: 100%; padding: 20px 16px 14px 16px; background: linear-gradient(transparent, rgba(0,0,0,0.85)); z-index: 10; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+        .controls.show { opacity: 1; pointer-events: auto; }
+        .progress-bar { width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; cursor: pointer; position: relative; margin-bottom: 10px; transition: height 0.2s; -webkit-tap-highlight-color: transparent; touch-action: none; }
+        .progress-bar:hover { height: 6px; }
+        .progress-fill { height: 100%; background: #ff0000; border-radius: 2px; width: 0%; position: relative; transition: width 0.1s; }
+        .progress-fill::after { content: ''; position: absolute; right: -6px; top: -4px; width: 12px; height: 12px; background: #ff0000; border-radius: 50%; opacity: 0; transition: opacity 0.2s; }
+        .progress-bar:hover .progress-fill::after { opacity: 1; }
+        .preview-tooltip { display: none; position: absolute; bottom: 25px; left: 0; width: 160px; height: 90px; background: #000; border: 2px solid rgba(255,255,255,0.8); border-radius: 4px; overflow: hidden; z-index: 15; transform: translateX(-50%); pointer-events: none; }
+        .preview-tooltip.show { display: block; }
+        .preview-tooltip canvas { width: 100%; height: 100%; object-fit: cover; background: #000; display: block; }
+        .preview-tooltip .preview-time { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 3px; font-family: monospace; }
+        .controls-bottom { display: flex; align-items: center; gap: 10px; }
+        .controls-bottom button { background: none; border: none; color: #fff; cursor: pointer; padding: 4px; transition: 0.2s; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; outline: none; user-select: none; min-width: 44px; min-height: 44px; }
+        .controls-bottom button:focus { outline: none; }
+        .controls-bottom button:hover { color: #ff0000; }
+        .controls-bottom button:active { color: #ff0000; transform: scale(0.92); }
+        .controls-bottom button svg { width: 24px; height: 24px; fill: currentColor; pointer-events: none; }
+        .time-display { color: #fff; font-size: 13px; font-family: monospace; margin: 0 4px; min-width: 70px; user-select: none; }
+        .spacer { flex: 1; }
+        .timeline-btn { background: rgba(255,255,255,0.08) !important; padding: 3px 10px !important; border-radius: 4px !important; font-size: 13px; font-weight: 600; color: #fff !important; text-align: center; -webkit-tap-highlight-color: transparent !important; outline: none !important; user-select: none !important; }
+        .timeline-btn:hover { background: rgba(255,255,255,0.2) !important; color: #ff0000 !important; }
+        .timeline-btn:focus { outline: none !important; }
+        .timeline-btn:active { transform: scale(0.92); }
+        .timeline-dropdown { position: relative; display: inline-block; }
+        .timeline-dropdown .dropdown-content { display: none; position: absolute; bottom: 110%; right: 0; background: rgba(30,30,30,0.95); border-radius: 8px; min-width: 160px; box-shadow: 0 4px 30px rgba(0,0,0,0.8); overflow: hidden; backdrop-filter: blur(10px); padding: 4px 0; }
+        .timeline-dropdown .dropdown-content.show { display: block; }
+        .timeline-dropdown .dropdown-content button { display: block; width: 100%; padding: 8px 16px; background: transparent; border: none; color: #ddd; font-size: 13px; cursor: pointer; text-align: left; transition: 0.15s; -webkit-tap-highlight-color: transparent; outline: none; min-height: 40px; }
+        .timeline-dropdown .dropdown-content button:focus { outline: none; }
+        .timeline-dropdown .dropdown-content button:hover { background: #ff0000; color: #fff; }
+        .timeline-dropdown .dropdown-content button .time-label { color: #ff0000; font-weight: bold; margin-right: 8px; }
+        .video-info { margin-top: 16px; }
+        .video-title { font-size: 20px; font-weight: 600; line-height: 1.4; }
+        .video-meta { color: #aaa; font-size: 14px; margin-top: 6px; }
+        .video-description { color: #aaa; font-size: 14px; margin-top: 10px; line-height: 1.6; padding-bottom: 10px; border-bottom: 1px solid #2a2a2a; }
+        .player-container:-webkit-full-screen { width: 100vw !important; height: 100vh !important; max-width: 100% !important; border-radius: 0 !important; background: #000 !important; }
+        .player-container:-moz-full-screen { width: 100vw !important; height: 100vh !important; max-width: 100% !important; border-radius: 0 !important; background: #000 !important; }
+        .player-container:fullscreen { width: 100vw !important; height: 100vh !important; max-width: 100% !important; border-radius: 0 !important; background: #000 !important; }
+        .player-container:-webkit-full-screen .video-wrapper { padding-top: 0 !important; height: 100vh !important; }
+        .player-container:-moz-full-screen .video-wrapper { padding-top: 0 !important; height: 100vh !important; }
+        .player-container:fullscreen .video-wrapper { padding-top: 0 !important; height: 100vh !important; }
+        .player-container:-webkit-full-screen .video-wrapper video { object-fit: cover; width: 100vw; height: 100vh; }
+        .player-container:-moz-full-screen .video-wrapper video { object-fit: cover; width: 100vw; height: 100vh; }
+        .player-container:fullscreen .video-wrapper video { object-fit: cover; width: 100vw; height: 100vh; }
+        .player-container:-webkit-full-screen ~ .video-info, .player-container:-moz-full-screen ~ .video-info, .player-container:fullscreen ~ .video-info { display: none !important; }
+        .close-fs { display: none; position: absolute; top: 16px; right: 16px; z-index: 20; background: rgba(0,0,0,0.6); border: none; color: #fff; font-size: 28px; cursor: pointer; padding: 8px 14px; border-radius: 8px; transition: 0.2s; -webkit-tap-highlight-color: transparent; outline: none; }
+        .close-fs:focus { outline: none; }
+        .close-fs:hover { background: rgba(255,0,0,0.6); }
+        .close-fs:active { transform: scale(0.92); }
+        .player-container:-webkit-full-screen .close-fs, .player-container:-moz-full-screen .close-fs, .player-container:fullscreen .close-fs { display: block; }
+        @media (max-width: 700px) { body { padding: 16px 10px; } .video-title { font-size: 16px; } .video-description { font-size: 13px; } .controls-bottom button svg { width: 20px; height: 20px; } .time-display { font-size: 12px; min-width: 60px; } .center-play { width: 52px; height: 52px; } .center-play svg { width: 28px; height: 28px; } .preview-tooltip { width: 120px; height: 68px; } .timeline-dropdown .dropdown-content { min-width: 140px; } .controls-bottom button { min-width: 38px; min-height: 38px; padding: 2px; } }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- ГЛАВНЫЙ ЭКРАН -->
         <div id="mainScreen">
             <h1>🎬 Мои видео</h1>
             <div id="loadingMessage">⏳ Загрузка видео...</div>
             <div class="video-grid" id="videoGrid"></div>
         </div>
 
-        <!-- ЭКРАН ПЛЕЕРА -->
         <div id="playerScreen" style="display:none;">
             <button class="back-btn" id="backBtn">
                 <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
                 Назад
             </button>
-
             <div class="player-container" id="playerContainer">
                 <div class="video-wrapper" id="videoWrapper">
                     <video id="myVideo" preload="metadata" playsinline></video>
@@ -599,7 +141,6 @@
                 </div>
                 <button class="close-fs" id="closeFsBtn">✕</button>
             </div>
-
             <div class="video-info" id="videoInfo">
                 <div class="video-title" id="videoTitle"></div>
                 <div class="video-meta" id="videoMeta"></div>
@@ -620,7 +161,6 @@
             appId: "1:879922990092:web:78262b08cd5437dbfc3229"
         };
 
-        // Инициализация Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
@@ -663,6 +203,48 @@
         previewCanvas.width = 160;
         previewCanvas.height = 90;
 
+        // === ГЕНЕРАЦИЯ ПРЕВЬЮ ИЗ ВИДЕО ===
+        function generateVideoPreview(videoElement, timeSeconds, callback) {
+            const wasPaused = videoElement.paused;
+            const currentTime = videoElement.currentTime;
+
+            // Создаём временный canvas для захвата кадра
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 320;
+            tempCanvas.height = 180;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            const captureFrame = () => {
+                try {
+                    tempCtx.drawImage(videoElement, 0, 0, tempCanvas.width, tempCanvas.height);
+                    const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.8);
+                    callback(dataUrl);
+                } catch (e) {
+                    callback(null);
+                }
+                // Возвращаем видео в исходное состояние
+                videoElement.currentTime = currentTime;
+                if (!wasPaused) {
+                    videoElement.play().catch(() => {});
+                }
+            };
+
+            // Если видео уже на нужной позиции
+            if (Math.abs(videoElement.currentTime - timeSeconds) < 0.05) {
+                captureFrame();
+                return;
+            }
+
+            // Перематываем и захватываем кадр
+            const onSeeked = () => {
+                videoElement.removeEventListener('seeked', onSeeked);
+                captureFrame();
+            };
+
+            videoElement.addEventListener('seeked', onSeeked);
+            videoElement.currentTime = timeSeconds;
+        }
+
         // === ЗАГРУЗКА ДАННЫХ ИЗ FIREBASE ===
         function loadVideosFromFirebase() {
             const videosRef = database.ref('videos');
@@ -676,7 +258,6 @@
                     return;
                 }
 
-                // Преобразуем объект в массив
                 const videoData = Object.values(data);
                 renderVideoList(videoData);
             }, (error) => {
@@ -688,23 +269,63 @@
         // === ОТОБРАЖЕНИЕ СПИСКА ВИДЕО ===
         function renderVideoList(videoData) {
             videoGrid.innerHTML = '';
-            
-            // Сортируем по id
             videoData.sort((a, b) => a.id - b.id);
 
-            videoData.forEach(video => {
+            videoData.forEach(videoItem => {
                 const card = document.createElement('div');
                 card.className = 'video-card';
-                const timemarksCount = video.timemarks ? Object.keys(video.timemarks).length : 0;
-                card.innerHTML = `
-                    <div class="thumbnail">🎬</div>
-                    <div class="info">
-                        <div class="title">${video.title}</div>
-                        <div class="meta">${timemarksCount > 0 ? timemarksCount + ' таймкодов' : 'Без таймкодов'}</div>
-                        ${timemarksCount > 0 ? `<div class="timeline-badge">⏱ ${timemarksCount} меток</div>` : ''}
-                    </div>
+                const timemarksCount = videoItem.timemarks ? Object.keys(videoItem.timemarks).length : 0;
+                
+                // Создаём контейнер для превью
+                const thumbnailDiv = document.createElement('div');
+                thumbnailDiv.className = 'thumbnail';
+                thumbnailDiv.innerHTML = '🎬'; // Заглушка
+
+                // Пытаемся сгенерировать превью из видео
+                const tempVideo = document.createElement('video');
+                tempVideo.src = videoItem.src;
+                tempVideo.preload = 'metadata';
+                tempVideo.crossOrigin = 'anonymous';
+                
+                // Определяем время для превью
+                let previewTimeSeconds = 5; // по умолчанию 5 секунд
+                if (videoItem.previewTime !== undefined) {
+                    previewTimeSeconds = videoItem.previewTime;
+                } else if (videoItem.timemarks) {
+                    const firstMark = Object.values(videoItem.timemarks)[0];
+                    if (firstMark) previewTimeSeconds = firstMark.time;
+                }
+
+                tempVideo.addEventListener('loadedmetadata', () => {
+                    // Убедимся, что время не больше длительности
+                    const safeTime = Math.min(previewTimeSeconds, tempVideo.duration - 1);
+                    if (safeTime > 0) {
+                        generateVideoPreview(tempVideo, safeTime, (dataUrl) => {
+                            if (dataUrl) {
+                                thumbnailDiv.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;">`;
+                            }
+                        });
+                    }
+                });
+
+                // Если видео не загрузилось - оставляем эмодзи
+                tempVideo.onerror = () => {
+                    thumbnailDiv.innerHTML = '🎬';
+                };
+
+                card.appendChild(thumbnailDiv);
+
+                // Информация
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'info';
+                infoDiv.innerHTML = `
+                    <div class="title">${videoItem.title}</div>
+                    <div class="meta">${timemarksCount > 0 ? timemarksCount + ' таймкодов' : 'Без таймкодов'}</div>
+                    ${timemarksCount > 0 ? `<div class="timeline-badge">⏱ ${timemarksCount} меток</div>` : ''}
                 `;
-                card.addEventListener('click', () => openPlayer(video));
+                card.appendChild(infoDiv);
+
+                card.addEventListener('click', () => openPlayer(videoItem));
                 videoGrid.appendChild(card);
             });
         }
@@ -718,7 +339,6 @@
             video.src = videoData.src;
             video.load();
 
-            // Обновляем таймкоды
             timelineMenu.innerHTML = '';
             if (videoData.timemarks) {
                 const timemarksArray = Object.values(videoData.timemarks);
@@ -740,7 +360,6 @@
                 });
             }
 
-            // Обновляем информацию
             videoTitle.textContent = videoData.title;
             videoMeta.textContent = videoData.meta || '© Видео';
             videoDescription.textContent = videoData.description || videoData.title;
@@ -803,7 +422,7 @@
             return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         }
 
-        // === ПРЕВЬЮ ===
+        // === ПРЕВЬЮ ПРИ НАВЕДЕНИИ ===
         function capturePreviewFrame(time) {
             return new Promise((resolve) => {
                 const wasPaused = video.paused;
@@ -976,7 +595,7 @@
 
         // === ЗАПУСК ===
         loadVideosFromFirebase();
-        console.log('✅ Плеер запущен, данные загружаются из Firebase');
+        console.log('✅ Плеер запущен, превью генерируются из видео');
     </script>
 </body>
 </html>
