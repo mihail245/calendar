@@ -130,6 +130,7 @@
             margin-bottom: 10px;
             transition: height 0.2s;
             -webkit-tap-highlight-color: transparent;
+            touch-action: none;
         }
         .progress-bar:hover {
             height: 6px;
@@ -140,6 +141,7 @@
             border-radius: 2px;
             width: 0%;
             position: relative;
+            transition: width 0.1s;
         }
         .progress-fill::after {
             content: '';
@@ -160,7 +162,7 @@
         .preview-tooltip {
             display: none;
             position: absolute;
-            bottom: 20px;
+            bottom: 25px;
             left: 0;
             width: 160px;
             height: 90px;
@@ -175,11 +177,12 @@
         .preview-tooltip.show {
             display: block;
         }
-        .preview-tooltip video {
+        .preview-tooltip canvas {
             width: 100%;
             height: 100%;
             object-fit: cover;
             background: #000;
+            display: block;
         }
         .preview-tooltip .preview-time {
             position: absolute;
@@ -213,6 +216,8 @@
             -webkit-touch-callout: none;
             outline: none;
             user-select: none;
+            min-width: 44px;
+            min-height: 44px;
         }
         .controls-bottom button:focus {
             outline: none;
@@ -299,6 +304,7 @@
             transition: 0.15s;
             -webkit-tap-highlight-color: transparent;
             outline: none;
+            min-height: 40px;
         }
         .speed-dropdown .dropdown-content button:focus {
             outline: none;
@@ -368,6 +374,7 @@
             transition: 0.15s;
             -webkit-tap-highlight-color: transparent;
             outline: none;
+            min-height: 40px;
         }
         .timeline-dropdown .dropdown-content button:focus {
             outline: none;
@@ -526,6 +533,11 @@
             .timeline-dropdown .dropdown-content {
                 min-width: 140px;
             }
+            .controls-bottom button {
+                min-width: 38px;
+                min-height: 38px;
+                padding: 2px;
+            }
         }
     </style>
 </head>
@@ -539,7 +551,7 @@
             </video>
 
             <div class="preview-tooltip" id="previewTooltip">
-                <video id="previewVideo" muted preload="auto"></video>
+                <canvas id="previewCanvas"></canvas>
                 <div class="preview-time" id="previewTime">00:00</div>
             </div>
 
@@ -623,12 +635,19 @@
     const fsIcon = document.getElementById('fsIcon');
     const videoInfo = document.getElementById('videoInfo');
     const previewTooltip = document.getElementById('previewTooltip');
-    const previewVideo = document.getElementById('previewVideo');
+    const previewCanvas = document.getElementById('previewCanvas');
     const previewTime = document.getElementById('previewTime');
+    const ctx = previewCanvas.getContext('2d');
 
     let controlsTimeout = null;
     let isControlsVisible = false;
     let isDragging = false;
+    let wasPlaying = false;
+    let previewFrameTimeout = null;
+
+    // Настройка canvas для превью
+    previewCanvas.width = 160;
+    previewCanvas.height = 90;
 
     function showControls() {
         controls.classList.add('show');
@@ -675,7 +694,64 @@
         }
     }
 
-    // === ПРОГРЕСС-БАР С ПРЕВЬЮ И МГНОВЕННОЙ ПЕРЕМОТКОЙ ===
+    // === ФУНКЦИЯ ДЛЯ ЗАХВАТА КАДРА ===
+    function capturePreviewFrame(time) {
+        return new Promise((resolve) => {
+            // Сохраняем текущее состояние
+            const wasPaused = video.paused;
+            const currentTime = video.currentTime;
+            
+            // Ищем ближайший загруженный фрагмент
+            let seekTime = time;
+            if (video.buffered.length > 0) {
+                let found = false;
+                for (let i = 0; i < video.buffered.length; i++) {
+                    const start = video.buffered.start(i);
+                    const end = video.buffered.end(i);
+                    if (time >= start && time <= end) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    // Если время не загружено, используем ближайшее доступное
+                    const lastBuffer = video.buffered.end(video.buffered.length - 1);
+                    seekTime = Math.min(time, lastBuffer - 0.1);
+                }
+            }
+
+            // Временная функция для захвата кадра
+            const captureFrame = () => {
+                try {
+                    ctx.drawImage(video, 0, 0, previewCanvas.width, previewCanvas.height);
+                    resolve();
+                } catch (e) {
+                    resolve();
+                }
+            };
+
+            // Если видео уже на нужной позиции
+            if (Math.abs(video.currentTime - seekTime) < 0.05) {
+                captureFrame();
+                return;
+            }
+
+            // Перематываем и захватываем кадр
+            const onSeeked = () => {
+                video.removeEventListener('seeked', onSeeked);
+                captureFrame();
+                // Возвращаем исходное состояние
+                if (!wasPaused) {
+                    video.play().catch(() => {});
+                }
+            };
+
+            video.addEventListener('seeked', onSeeked);
+            video.currentTime = seekTime;
+        });
+    }
+
+    // === ПРОГРЕСС-БАР С ПРЕВЬЮ ===
     function updateProgress(e) {
         const rect = progressBar.getBoundingClientRect();
         let x = (e.clientX || e.touches?.[0]?.clientX || 0) - rect.left;
@@ -683,37 +759,33 @@
         const percent = x / rect.width;
         const time = percent * video.duration;
 
-        if (!isNaN(time) && video.duration) {
-            // Мгновенно перематываем видео
-            video.currentTime = time;
-            
+        if (!isNaN(time) && video.duration > 0) {
             // Обновляем прогресс-бар
             progressFill.style.width = percent * 100 + '%';
 
-            // Обновляем превью
-            const tooltipX = Math.max(0, Math.min(x, rect.width - 80));
-            previewTooltip.style.left = tooltipX + 'px';
+            // Обновляем время в превью
             previewTime.textContent = formatTime(time);
 
-            if (previewVideo.src !== video.src) {
-                previewVideo.src = video.src;
-                previewVideo.load();
-            }
-            
-            // Показываем кадр из видео
-            previewVideo.currentTime = time;
-            previewVideo.play().catch(() => {});
+            // Позиционируем тултип
+            const tooltipX = Math.max(10, Math.min(x, rect.width - 80));
+            previewTooltip.style.left = tooltipX + 'px';
+
+            // Показываем превью с задержкой для производительности
+            clearTimeout(previewFrameTimeout);
+            previewFrameTimeout = setTimeout(() => {
+                capturePreviewFrame(time);
+            }, 50);
         }
     }
 
     function startDrag(e) {
         isDragging = true;
-        previewTooltip.classList.add('show');
-        if (previewVideo.src !== video.src) {
-            previewVideo.src = video.src;
-            previewVideo.load();
-        }
+        wasPlaying = !video.paused;
+        
+        // Останавливаем видео во время перетаскивания
         video.pause();
+        previewTooltip.classList.add('show');
+        
         updateProgress(e);
     }
 
@@ -728,7 +800,7 @@
         if (isDragging) {
             isDragging = false;
             previewTooltip.classList.remove('show');
-            previewVideo.pause();
+            clearTimeout(previewFrameTimeout);
 
             const rect = progressBar.getBoundingClientRect();
             let x = (e.clientX || e.changedTouches?.[0]?.clientX || 0) - rect.left;
@@ -736,18 +808,20 @@
             const percent = x / rect.width;
             const time = percent * video.duration;
 
-            if (!isNaN(time) && video.duration) {
+            if (!isNaN(time) && video.duration > 0) {
                 video.currentTime = time;
                 progressFill.style.width = percent * 100 + '%';
             }
 
-            if (video.paused) {
-                centerPlay.classList.add('show');
-                showControls();
+            // Возвращаем воспроизведение если оно было
+            if (wasPlaying) {
+                video.play().catch(() => {});
+                centerPlay.classList.remove('show');
             } else {
-                video.play();
-                showControls();
+                centerPlay.classList.add('show');
             }
+            
+            showControls();
         }
     }
 
@@ -760,13 +834,15 @@
     progressBar.addEventListener('touchstart', (e) => {
         e.preventDefault();
         startDrag(e);
-    });
+    }, { passive: false });
+    
     document.addEventListener('touchmove', (e) => {
         if (isDragging) {
             e.preventDefault();
             moveDrag(e);
         }
     }, { passive: false });
+    
     document.addEventListener('touchend', (e) => {
         if (isDragging) {
             endDrag(e);
@@ -776,7 +852,8 @@
     // === СОБЫТИЯ ===
     wrapper.addEventListener('click', (e) => {
         if (e.target.closest('button') || e.target.closest('.center-play') || 
-            e.target.closest('.speed-dropdown') || e.target.closest('.timeline-dropdown')) {
+            e.target.closest('.speed-dropdown') || e.target.closest('.timeline-dropdown') ||
+            e.target.closest('.progress-bar')) {
             return;
         }
         toggleControls();
@@ -821,14 +898,14 @@
         const total = formatTime(video.duration);
         timeDisplay.textContent = `${current} / ${total}`;
 
-        if (video.duration && !isDragging) {
+        if (video.duration > 0 && !isDragging) {
             const percent = (video.currentTime / video.duration) * 100;
             progressFill.style.width = percent + '%';
         }
     });
 
     function formatTime(seconds) {
-        if (isNaN(seconds)) return '00:00';
+        if (isNaN(seconds) || !isFinite(seconds)) return '00:00';
         const m = Math.floor(seconds / 60);
         const s = Math.floor(seconds % 60);
         return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
@@ -849,13 +926,10 @@
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const time = parseFloat(btn.dataset.time);
-            if (!isNaN(time) && video.duration) {
+            if (!isNaN(time) && video.duration > 0) {
                 video.currentTime = time;
                 progressFill.style.width = (time / video.duration) * 100 + '%';
                 showControls();
-                if (video.paused) {
-                    centerPlay.classList.add('show');
-                }
             }
             timelineMenu.classList.remove('show');
         });
@@ -936,6 +1010,22 @@
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && document.fullscreenElement) {
             toggleFullscreen();
+        }
+        // Клавиатурные команды для видео
+        if (e.key === ' ' || e.key === 'k') {
+            e.preventDefault();
+            togglePlay();
+        }
+        if (e.key === 'f') {
+            toggleFullscreen();
+        }
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            video.currentTime = Math.min(video.currentTime + 5, video.duration);
+        }
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            video.currentTime = Math.max(video.currentTime - 5, 0);
         }
     });
 
