@@ -1,4 +1,4 @@
-// info.js - файл с данными о видео
+// info.js айл с данными о видео
 const videoData = [
     {
         id: 1,
