@@ -37,7 +37,7 @@
             width: 100%;
             padding-top: 56.25%;
             background: #000;
-            cursor: pointer;
+            cursor: default;
         }
         .video-wrapper video {
             position: absolute;
@@ -48,6 +48,7 @@
             display: block;
             background: #000;
             object-fit: cover;
+            pointer-events: none;
         }
 
         .overlay {
@@ -75,11 +76,12 @@
             align-items: center;
             justify-content: center;
             z-index: 5;
-            pointer-events: none;
+            pointer-events: auto;
             opacity: 0;
             transition: opacity 0.3s;
             backdrop-filter: blur(4px);
             border: 2px solid rgba(255,255,255,0.2);
+            cursor: pointer;
         }
         .center-play.show {
             opacity: 1;
@@ -448,14 +450,13 @@
     let controlsTimeout = null;
     let isControlsVisible = false;
 
-    // === ПОКАЗАТЬ УПРАВЛЕНИЕ (на 3 секунды если видео играет, постоянно если на паузе) ===
+    // === ПОКАЗАТЬ УПРАВЛЕНИЕ ===
     function showControls() {
         controls.classList.add('show');
         centerPlay.classList.add('show');
         isControlsVisible = true;
         clearTimeout(controlsTimeout);
 
-        // Если видео играет — скрываем через 3 секунды
         if (!video.paused) {
             controlsTimeout = setTimeout(() => {
                 controls.classList.remove('show');
@@ -473,7 +474,7 @@
         clearTimeout(controlsTimeout);
     }
 
-    // === ПЕРЕКЛЮЧИТЬ УПРАВЛЕНИЕ (при тапе по видео) ===
+    // === ПЕРЕКЛЮЧИТЬ УПРАВЛЕНИЕ (при тапе по пустому месту) ===
     function toggleControls() {
         if (isControlsVisible) {
             hideControls();
@@ -488,20 +489,20 @@
             video.play();
             playIcon.setAttribute('d', 'M6,4h4v16H6V4z M14,4h4v16h-4V4z');
             centerPlay.classList.remove('show');
-            showControls(); // Показываем на 3 секунды
+            showControls();
         } else {
             video.pause();
             playIcon.setAttribute('d', 'M5,3 L19,12 L5,21 Z');
             centerPlay.classList.add('show');
-            showControls(); // Показываем постоянно (т.к. видео на паузе)
+            showControls();
         }
     }
 
     // === СОБЫТИЯ ===
-    // Клик/тап по видео — переключаем управление
+    // Тап по пустому месту видео — переключаем интерфейс
     wrapper.addEventListener('click', (e) => {
-        // Если кликнули по кнопке — не трогаем
-        if (e.target.closest('button') || e.target.closest('.speed-dropdown')) {
+        // Если кликнули по кнопке или по центру Play — игнорируем
+        if (e.target.closest('button') || e.target.closest('.center-play') || e.target.closest('.speed-dropdown')) {
             return;
         }
         toggleControls();
@@ -523,22 +524,15 @@
         }
     });
 
-    // Кнопка Play/Pause
+    // Кнопка Play/Pause (слева снизу)
     playPauseBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         togglePlay();
-        // Показываем управление после клика
         showControls();
     });
 
     // Центральная кнопка Play
     centerPlay.addEventListener('click', (e) => {
-        e.stopPropagation();
-        togglePlay();
-    });
-
-    // Клик по самому видео (для телефонов — запуск/пауза)
-    video.addEventListener('click', (e) => {
         e.stopPropagation();
         togglePlay();
         showControls();
@@ -548,7 +542,7 @@
     video.addEventListener('ended', () => {
         playIcon.setAttribute('d', 'M5,3 L19,12 L5,21 Z');
         centerPlay.classList.add('show');
-        showControls(); // Показываем постоянно
+        showControls();
     });
 
     // === ВРЕМЯ И ПРОГРЕСС ===
