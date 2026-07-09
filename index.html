@@ -61,9 +61,6 @@
             pointer-events: none;
             z-index: 2;
         }
-        .video-wrapper:hover .overlay {
-            background: rgba(0,0,0,0.3);
-        }
 
         .center-play {
             position: absolute;
@@ -260,7 +257,6 @@
             border-bottom: 1px solid #2a2a2a;
         }
 
-        /* === FULLSCREEN === */
         .player-container:-webkit-full-screen {
             width: 100vw !important;
             height: 100vh !important;
@@ -450,38 +446,37 @@
     const videoInfo = document.getElementById('videoInfo');
 
     let controlsTimeout = null;
-    let isControlsVisible = true;
-    let isVideoPlaying = false;
+    let isControlsVisible = false;
 
-    // === ПОКАЗАТЬ УПРАВЛЕНИЕ ===
+    // === ПОКАЗАТЬ УПРАВЛЕНИЕ (на 3 секунды если видео играет, постоянно если на паузе) ===
     function showControls() {
         controls.classList.add('show');
         centerPlay.classList.add('show');
         isControlsVisible = true;
         clearTimeout(controlsTimeout);
-        
-        // Запускаем таймер на 3 секунды
-        controlsTimeout = setTimeout(() => {
-            controls.classList.remove('show');
-            centerPlay.classList.remove('show');
-            isControlsVisible = false;
-        }, 3000);
+
+        // Если видео играет — скрываем через 3 секунды
+        if (!video.paused) {
+            controlsTimeout = setTimeout(() => {
+                controls.classList.remove('show');
+                centerPlay.classList.remove('show');
+                isControlsVisible = false;
+            }, 3000);
+        }
     }
 
-    // === ПОКАЗАТЬ УПРАВЛЕНИЕ БЕЗ АВТОЗАКРЫТИЯ (при паузе) ===
-    function showControlsPermanent() {
-        controls.classList.add('show');
-        centerPlay.classList.add('show');
-        isControlsVisible = true;
+    // === СКРЫТЬ УПРАВЛЕНИЕ ===
+    function hideControls() {
+        controls.classList.remove('show');
+        centerPlay.classList.remove('show');
+        isControlsVisible = false;
         clearTimeout(controlsTimeout);
     }
 
+    // === ПЕРЕКЛЮЧИТЬ УПРАВЛЕНИЕ (при тапе по видео) ===
     function toggleControls() {
         if (isControlsVisible) {
-            controls.classList.remove('show');
-            centerPlay.classList.remove('show');
-            isControlsVisible = false;
-            clearTimeout(controlsTimeout);
+            hideControls();
         } else {
             showControls();
         }
@@ -493,64 +488,67 @@
             video.play();
             playIcon.setAttribute('d', 'M6,4h4v16H6V4z M14,4h4v16h-4V4z');
             centerPlay.classList.remove('show');
-            isVideoPlaying = true;
             showControls(); // Показываем на 3 секунды
         } else {
             video.pause();
             playIcon.setAttribute('d', 'M5,3 L19,12 L5,21 Z');
             centerPlay.classList.add('show');
-            isVideoPlaying = false;
-            showControlsPermanent(); // Показываем постоянно пока на паузе
+            showControls(); // Показываем постоянно (т.к. видео на паузе)
         }
     }
 
     // === СОБЫТИЯ ===
+    // Клик/тап по видео — переключаем управление
     wrapper.addEventListener('click', (e) => {
-        if (!e.target.closest('button') && !e.target.closest('.speed-dropdown')) {
-            toggleControls();
+        // Если кликнули по кнопке — не трогаем
+        if (e.target.closest('button') || e.target.closest('.speed-dropdown')) {
+            return;
         }
+        toggleControls();
     });
 
+    // Наведение мыши (для ПК)
     wrapper.addEventListener('mouseenter', () => {
-        if (video.paused) {
-            showControlsPermanent();
-        } else {
-            showControls();
-        }
+        showControls();
     });
 
     wrapper.addEventListener('mouseleave', () => {
         if (!video.paused) {
             clearTimeout(controlsTimeout);
             controlsTimeout = setTimeout(() => {
-                controls.classList.remove('show');
-                centerPlay.classList.remove('show');
-                isControlsVisible = false;
+                if (!video.paused) {
+                    hideControls();
+                }
             }, 2000);
         }
     });
 
+    // Кнопка Play/Pause
     playPauseBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         togglePlay();
+        // Показываем управление после клика
+        showControls();
     });
 
+    // Центральная кнопка Play
     centerPlay.addEventListener('click', (e) => {
         e.stopPropagation();
         togglePlay();
     });
 
+    // Клик по самому видео (для телефонов — запуск/пауза)
     video.addEventListener('click', (e) => {
-        if (e.target === video) {
-            togglePlay();
-        }
+        e.stopPropagation();
+        togglePlay();
+        showControls();
     });
 
+    // Когда видео закончилось
     video.addEventListener('ended', () => {
         playIcon.setAttribute('d', 'M5,3 L19,12 L5,21 Z');
         centerPlay.classList.add('show');
-        isVideoPlaying = false;
-        showControlsPermanent();
+        showControls(); // Показываем постоянно
     });
 
     // === ВРЕМЯ И ПРОГРЕСС ===
@@ -569,11 +567,7 @@
         const rect = progressBar.getBoundingClientRect();
         const clickX = (e.clientX - rect.left) / rect.width;
         video.currentTime = clickX * video.duration;
-        if (video.paused) {
-            showControlsPermanent();
-        } else {
-            showControls();
-        }
+        showControls();
     });
 
     function formatTime(seconds) {
@@ -604,11 +598,7 @@
             btn.classList.add('active');
 
             speedMenu.classList.remove('show');
-            if (video.paused) {
-                showControlsPermanent();
-            } else {
-                showControls();
-            }
+            showControls();
         });
     });
 
@@ -639,11 +629,7 @@
             } catch(e) {}
             fsIcon.setAttribute('d', 'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z');
         }
-        if (video.paused) {
-            showControlsPermanent();
-        } else {
-            showControls();
-        }
+        showControls();
     }
 
     document.addEventListener('fullscreenchange', () => {
@@ -653,11 +639,7 @@
         } else {
             videoInfo.style.display = 'none';
         }
-        if (video.paused) {
-            showControlsPermanent();
-        } else {
-            showControls();
-        }
+        showControls();
     });
 
     fullscreenBtn.addEventListener('click', (e) => {
@@ -677,13 +659,9 @@
         }
     });
 
-    // === СТАРТ ===
+    // === СТАРТ: показываем управление ===
     setTimeout(() => {
-        if (video.paused) {
-            showControlsPermanent();
-        } else {
-            showControls();
-        }
+        showControls();
     }, 500);
 </script>
 
