@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Видео плеер</title>
+    <!-- Подключаем Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <style>
         * {
             margin: 0;
@@ -86,6 +89,12 @@
             font-size: 11px;
             margin-top: 6px;
             color: #ff0000;
+        }
+        #loadingMessage {
+            color: #aaa;
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
         }
 
         /* Экран плеера */
@@ -544,6 +553,7 @@
         <!-- ГЛАВНЫЙ ЭКРАН -->
         <div id="mainScreen">
             <h1>🎬 Мои видео</h1>
+            <div id="loadingMessage">⏳ Загрузка видео...</div>
             <div class="video-grid" id="videoGrid"></div>
         </div>
 
@@ -598,21 +608,27 @@
         </div>
     </div>
 
-    <!-- Подключаем info.js с данными -->
-    <script src="https://raw.githubusercontent.com/mihail245/calendar/refs/heads/main/info.js"></script>
-
     <script>
-        // === ПРОВЕРКА ЗАГРУЗКИ ДАННЫХ ===
-        if (typeof videoData === 'undefined') {
-            console.error('Ошибка: videoData не загружен! Проверь info.js');
-            document.body.innerHTML = '<h1 style="color:red;text-align:center;margin-top:50px;">❌ Ошибка загрузки данных. Проверь info.js</h1>';
-            throw new Error('videoData not loaded');
-        }
+        // === КОНФИГУРАЦИЯ FIREBASE ===
+        const firebaseConfig = {
+            apiKey: "AIzaSyCaNedHxv1aybxGcUR-mU9TkMuLf2toQG4",
+            authDomain: "dnevnik-d4846.firebaseapp.com",
+            databaseURL: "https://dnevnik-d4846-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "dnevnik-d4846",
+            storageBucket: "dnevnik-d4846.firebasestorage.app",
+            messagingSenderId: "879922990092",
+            appId: "1:879922990092:web:78262b08cd5437dbfc3229"
+        };
+
+        // Инициализация Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
 
         // === ЭЛЕМЕНТЫ ===
         const mainScreen = document.getElementById('mainScreen');
         const playerScreen = document.getElementById('playerScreen');
         const videoGrid = document.getElementById('videoGrid');
+        const loadingMessage = document.getElementById('loadingMessage');
         const backBtn = document.getElementById('backBtn');
         const playerContainer = document.getElementById('playerContainer');
         const video = document.getElementById('myVideo');
@@ -647,41 +663,66 @@
         previewCanvas.width = 160;
         previewCanvas.height = 90;
 
+        // === ЗАГРУЗКА ДАННЫХ ИЗ FIREBASE ===
+        function loadVideosFromFirebase() {
+            const videosRef = database.ref('videos');
+            videosRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                loadingMessage.style.display = 'none';
+                
+                if (!data) {
+                    loadingMessage.textContent = '📭 Нет видео. Добавьте их в Firebase.';
+                    loadingMessage.style.display = 'block';
+                    return;
+                }
+
+                // Преобразуем объект в массив
+                const videoData = Object.values(data);
+                renderVideoList(videoData);
+            }, (error) => {
+                console.error('Ошибка загрузки из Firebase:', error);
+                loadingMessage.innerHTML = '❌ Ошибка загрузки данных. Проверьте настройки Firebase.';
+            });
+        }
+
         // === ОТОБРАЖЕНИЕ СПИСКА ВИДЕО ===
-        function renderVideoList() {
+        function renderVideoList(videoData) {
             videoGrid.innerHTML = '';
-            videoData.forEach(v => {
+            
+            // Сортируем по id
+            videoData.sort((a, b) => a.id - b.id);
+
+            videoData.forEach(video => {
                 const card = document.createElement('div');
                 card.className = 'video-card';
-                const timemarksCount = v.timemarks ? v.timemarks.length : 0;
+                const timemarksCount = video.timemarks ? Object.keys(video.timemarks).length : 0;
                 card.innerHTML = `
                     <div class="thumbnail">🎬</div>
                     <div class="info">
-                        <div class="title">${v.title}</div>
+                        <div class="title">${video.title}</div>
                         <div class="meta">${timemarksCount > 0 ? timemarksCount + ' таймкодов' : 'Без таймкодов'}</div>
                         ${timemarksCount > 0 ? `<div class="timeline-badge">⏱ ${timemarksCount} меток</div>` : ''}
                     </div>
                 `;
-                card.addEventListener('click', () => openPlayer(v.id));
+                card.addEventListener('click', () => openPlayer(video));
                 videoGrid.appendChild(card);
             });
         }
 
         // === ОТКРЫТИЕ ПЛЕЕРА ===
-        function openPlayer(videoId) {
-            currentVideo = videoData.find(v => v.id === videoId);
-            if (!currentVideo) return;
-
+        function openPlayer(videoData) {
+            currentVideo = videoData;
             mainScreen.style.display = 'none';
             playerScreen.style.display = 'block';
 
-            video.src = currentVideo.src;
+            video.src = videoData.src;
             video.load();
 
             // Обновляем таймкоды
             timelineMenu.innerHTML = '';
-            if (currentVideo.timemarks && currentVideo.timemarks.length > 0) {
-                currentVideo.timemarks.forEach(tm => {
+            if (videoData.timemarks) {
+                const timemarksArray = Object.values(videoData.timemarks);
+                timemarksArray.forEach(tm => {
                     const btn = document.createElement('button');
                     const minutes = Math.floor(tm.time / 60);
                     const seconds = Math.floor(tm.time % 60);
@@ -700,9 +741,9 @@
             }
 
             // Обновляем информацию
-            videoTitle.textContent = currentVideo.title;
-            videoMeta.textContent = currentVideo.meta || '© Видео';
-            videoDescription.textContent = currentVideo.description || currentVideo.title;
+            videoTitle.textContent = videoData.title;
+            videoMeta.textContent = videoData.meta || '© Видео';
+            videoDescription.textContent = videoData.description || videoData.title;
 
             setTimeout(showControls, 300);
         }
@@ -934,8 +975,8 @@
         });
 
         // === ЗАПУСК ===
-        renderVideoList();
-        console.log('✅ Плеер загружен, видео:', videoData.length);
+        loadVideosFromFirebase();
+        console.log('✅ Плеер запущен, данные загружаются из Firebase');
     </script>
 </body>
 </html>
