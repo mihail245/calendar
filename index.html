@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube плеер</title>
+    <title>Видео плеер</title>
     <style>
         * {
             margin: 0;
@@ -11,26 +11,31 @@
             box-sizing: border-box;
         }
         body {
-            background: #0f0f0f;
-            color: #fff;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            padding: 40px 20px;
+            background: #000;
             display: flex;
             justify-content: center;
-        }
-        .container {
-            max-width: 1000px;
-            width: 100%;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            padding: 20px;
         }
 
-        /* === ВИДЕО ПЛЕЕР === */
+        /* Контейнер плеера */
+        .player-container {
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        /* Видео */
         .video-wrapper {
             position: relative;
             width: 100%;
             padding-top: 56.25%;
             background: #000;
-            border-radius: 12px;
-            overflow: hidden;
             cursor: pointer;
         }
         .video-wrapper video {
@@ -43,7 +48,7 @@
             background: #000;
         }
 
-        /* Затемнение при наведении */
+        /* Затемнение */
         .video-wrapper .overlay {
             position: absolute;
             top: 0;
@@ -89,14 +94,14 @@
             margin-left: 4px;
         }
 
-        /* === УПРАВЛЕНИЕ (нижняя панель) === */
+        /* === УПРАВЛЕНИЕ === */
         .controls {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
             padding: 20px 16px 14px 16px;
-            background: linear-gradient(transparent, rgba(0,0,0,0.75));
+            background: linear-gradient(transparent, rgba(0,0,0,0.85));
             z-index: 10;
             opacity: 0;
             transition: opacity 0.3s;
@@ -144,7 +149,7 @@
             opacity: 1;
         }
 
-        /* Нижняя панель кнопок */
+        /* Нижняя панель */
         .controls-bottom {
             display: flex;
             align-items: center;
@@ -180,7 +185,6 @@
             min-width: 70px;
         }
 
-        /* Разделитель */
         .spacer {
             flex: 1;
         }
@@ -243,32 +247,50 @@
             font-weight: bold;
         }
 
-        /* === НАЗВАНИЕ И ОПИСАНИЕ === */
-        .video-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin-top: 16px;
-            line-height: 1.4;
+        /* === FULLSCREEN (горизонтально на весь экран) === */
+        .player-container.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            max-width: 100%;
+            border-radius: 0;
+            z-index: 9999;
+            background: #000;
         }
-        .video-description {
-            color: #aaa;
-            font-size: 14px;
-            margin-top: 8px;
-            line-height: 1.6;
-            max-width: 80%;
+        .player-container.fullscreen .video-wrapper {
+            padding-top: 0;
+            height: 100vh;
+        }
+        .player-container.fullscreen .video-wrapper video {
+            object-fit: contain;
+        }
+
+        /* Кнопка закрыть fullscreen */
+        .close-fs {
+            display: none;
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            z-index: 20;
+            background: rgba(0,0,0,0.6);
+            border: none;
+            color: #fff;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 8px 14px;
+            border-radius: 8px;
+            transition: 0.2s;
+        }
+        .close-fs:hover {
+            background: rgba(255,0,0,0.6);
+        }
+        .player-container.fullscreen .close-fs {
+            display: block;
         }
 
         @media (max-width: 700px) {
-            body {
-                padding: 16px 10px;
-            }
-            .video-title {
-                font-size: 16px;
-            }
-            .video-description {
-                font-size: 13px;
-                max-width: 100%;
-            }
             .controls-bottom button svg {
                 width: 20px;
                 height: 20px;
@@ -290,13 +312,12 @@
 </head>
 <body>
 
-<div class="container">
+<div class="player-container" id="playerContainer">
     <div class="video-wrapper" id="videoWrapper">
         <video id="myVideo" preload="metadata">
             <source src="https://cs4.vps-vids.com/vids738930/sexstud27873.mp4?hash=209a80d41d94eff5a0889a93e3c674ba&expires=1783631009&ip=77.220.50.105" type="video/mp4">
         </video>
 
-        <!-- Затемнение -->
         <div class="overlay" id="overlay"></div>
 
         <!-- Центральная кнопка Play -->
@@ -311,17 +332,14 @@
             </div>
 
             <div class="controls-bottom">
-                <!-- Play/Pause -->
                 <button id="playPauseBtn">
                     <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" id="playIcon"/></svg>
                 </button>
 
-                <!-- Время -->
                 <span class="time-display" id="timeDisplay">00:00 / 00:00</span>
 
                 <div class="spacer"></div>
 
-                <!-- Скорость -->
                 <div class="speed-dropdown">
                     <button class="speed-btn" id="speedBtn">1x</button>
                     <div class="dropdown-content" id="speedMenu">
@@ -335,7 +353,6 @@
                     </div>
                 </div>
 
-                <!-- Fullscreen -->
                 <button id="fullscreenBtn">
                     <svg viewBox="0 0 24 24" id="fsIcon">
                         <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
@@ -345,12 +362,12 @@
         </div>
     </div>
 
-    <!-- Название и описание -->
-    <div class="video-title">Кайф подруга парнем поделилась сиксом нереално насладилась</div>
-    <div class="video-description">Потоковое видео · Исходник cs4.vps-vids.com · 4 563 просмотра</div>
+    <!-- Кнопка закрыть полноэкранный режим -->
+    <button class="close-fs" id="closeFsBtn">✕</button>
 </div>
 
 <script>
+    const playerContainer = document.getElementById('playerContainer');
     const video = document.getElementById('myVideo');
     const wrapper = document.getElementById('videoWrapper');
     const controls = document.getElementById('controls');
@@ -363,6 +380,7 @@
     const speedBtn = document.getElementById('speedBtn');
     const speedMenu = document.getElementById('speedMenu');
     const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const closeFsBtn = document.getElementById('closeFsBtn');
     const fsIcon = document.getElementById('fsIcon');
 
     let controlsTimeout = null;
@@ -394,19 +412,13 @@
         }
     }
 
-    // Клик по видео — показать/скрыть управление
     wrapper.addEventListener('click', (e) => {
-        // Если кликнули не по кнопкам
         if (!e.target.closest('button') && !e.target.closest('.speed-dropdown')) {
             toggleControls();
         }
     });
 
-    // При наведении на видео — показываем управление
-    wrapper.addEventListener('mouseenter', () => {
-        showControls();
-    });
-
+    wrapper.addEventListener('mouseenter', showControls);
     wrapper.addEventListener('mouseleave', () => {
         if (!video.paused) {
             clearTimeout(controlsTimeout);
@@ -437,7 +449,6 @@
         togglePlay();
     });
 
-    // Центральная кнопка Play
     centerPlay.addEventListener('click', (e) => {
         e.stopPropagation();
         togglePlay();
@@ -499,35 +510,57 @@
         });
     });
 
-    // === FULLSCREEN (КАК НА ЮТУБЕ) ===
-    fullscreenBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen?.() || 
-            document.documentElement.webkitRequestFullscreen?.();
-        } else {
-            document.exitFullscreen?.() || document.webkitExitFullscreen?.();
-        }
-    });
-
-    // Меняем иконку fullscreen при входе/выходе
-    document.addEventListener('fullscreenchange', () => {
-        if (document.fullscreenElement) {
+    // === FULLSCREEN (горизонтально на весь экран) ===
+    function toggleFullscreen() {
+        if (!playerContainer.classList.contains('fullscreen')) {
+            // Включаем fullscreen
+            playerContainer.classList.add('fullscreen');
+            // Автоматически поворачиваем на горизонталь (если на телефоне)
+            try {
+                screen.orientation?.lock('landscape');
+            } catch(e) {}
+            // Меняем иконку
             fsIcon.setAttribute('d', 'M5,16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6,11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z');
         } else {
+            // Выключаем fullscreen
+            playerContainer.classList.remove('fullscreen');
+            try {
+                screen.orientation?.unlock();
+            } catch(e) {}
             fsIcon.setAttribute('d', 'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z');
+        }
+        // Показываем управление
+        showControls();
+    }
+
+    fullscreenBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFullscreen();
+    });
+
+    // Закрыть fullscreen (крестик)
+    closeFsBtn.addEventListener('click', () => {
+        if (playerContainer.classList.contains('fullscreen')) {
+            toggleFullscreen();
         }
     });
 
-    // === Показываем управление при загрузке ===
-    setTimeout(showControls, 500);
+    // ESC для выхода из fullscreen
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && playerContainer.classList.contains('fullscreen')) {
+            toggleFullscreen();
+        }
+    });
 
-    // Начинаем воспроизведение по клику
+    // === Автозапуск при клике по видео ===
     video.addEventListener('click', (e) => {
         if (e.target === video) {
             togglePlay();
         }
     });
+
+    // Показываем управление при загрузке
+    setTimeout(showControls, 500);
 </script>
 
 </body>
