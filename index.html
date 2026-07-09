@@ -141,7 +141,7 @@
             border-radius: 2px;
             width: 0%;
             position: relative;
-            transition: width 0.1s;
+            transition: width 0.05s;
         }
         .progress-fill::after {
             content: '';
@@ -218,6 +218,7 @@
             user-select: none;
             min-width: 44px;
             min-height: 44px;
+            position: relative;
         }
         .controls-bottom button:focus {
             outline: none;
@@ -352,7 +353,7 @@
             right: 0;
             background: rgba(30,30,30,0.95);
             border-radius: 8px;
-            min-width: 160px;
+            min-width: 180px;
             box-shadow: 0 4px 30px rgba(0,0,0,0.8);
             overflow: hidden;
             backdrop-filter: blur(10px);
@@ -361,32 +362,58 @@
         .timeline-dropdown .dropdown-content.show {
             display: block;
         }
-        .timeline-dropdown .dropdown-content button {
-            display: block;
-            width: 100%;
-            padding: 8px 16px;
-            background: transparent;
-            border: none;
-            color: #ddd;
-            font-size: 13px;
+        .timeline-dropdown .dropdown-content .timeline-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            gap: 10px;
             cursor: pointer;
-            text-align: left;
             transition: 0.15s;
-            -webkit-tap-highlight-color: transparent;
-            outline: none;
-            min-height: 40px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
         }
-        .timeline-dropdown .dropdown-content button:focus {
-            outline: none;
+        .timeline-dropdown .dropdown-content .timeline-item:hover {
+            background: rgba(255,0,0,0.2);
         }
-        .timeline-dropdown .dropdown-content button:hover {
-            background: #ff0000;
+        .timeline-dropdown .dropdown-content .timeline-item:last-child {
+            border-bottom: none;
+        }
+        .timeline-dropdown .dropdown-content .timeline-item .preview-thumb {
+            width: 80px;
+            height: 45px;
+            background: #000;
+            border-radius: 4px;
+            overflow: hidden;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .timeline-dropdown .dropdown-content .timeline-item .preview-thumb canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .timeline-dropdown .dropdown-content .timeline-item .preview-thumb .thumb-time {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            background: rgba(0,0,0,0.7);
             color: #fff;
+            font-size: 10px;
+            padding: 1px 4px;
+            border-radius: 2px;
+            font-family: monospace;
         }
-        .timeline-dropdown .dropdown-content button .time-label {
+        .timeline-dropdown .dropdown-content .timeline-item .item-info {
+            flex: 1;
+        }
+        .timeline-dropdown .dropdown-content .timeline-item .item-info .time-label {
             color: #ff0000;
             font-weight: bold;
-            margin-right: 8px;
+            font-size: 14px;
+        }
+        .timeline-dropdown .dropdown-content .timeline-item .item-info .item-desc {
+            color: #ddd;
+            font-size: 13px;
         }
 
         .video-info {
@@ -531,12 +558,16 @@
                 height: 68px;
             }
             .timeline-dropdown .dropdown-content {
-                min-width: 140px;
+                min-width: 160px;
             }
             .controls-bottom button {
                 min-width: 38px;
                 min-height: 38px;
                 padding: 2px;
+            }
+            .timeline-dropdown .dropdown-content .timeline-item .preview-thumb {
+                width: 60px;
+                height: 34px;
             }
         }
     </style>
@@ -578,9 +609,36 @@
                     <div class="timeline-dropdown">
                         <button class="timeline-btn" id="timelineBtn">⏱ Таймкод</button>
                         <div class="dropdown-content" id="timelineMenu">
-                            <button data-time="213"><span class="time-label">3:33</span> майнит</button>
-                            <button data-time="416"><span class="time-label">6:56</span> глючит</button>
-                            <button data-time="1005"><span class="time-label">16:45</span> байнит</button>
+                            <div class="timeline-item" data-time="213">
+                                <div class="preview-thumb">
+                                    <canvas class="thumb-canvas" width="80" height="45"></canvas>
+                                    <span class="thumb-time">3:33</span>
+                                </div>
+                                <div class="item-info">
+                                    <div class="time-label">3:33</div>
+                                    <div class="item-desc">майнит</div>
+                                </div>
+                            </div>
+                            <div class="timeline-item" data-time="416">
+                                <div class="preview-thumb">
+                                    <canvas class="thumb-canvas" width="80" height="45"></canvas>
+                                    <span class="thumb-time">6:56</span>
+                                </div>
+                                <div class="item-info">
+                                    <div class="time-label">6:56</div>
+                                    <div class="item-desc">глючит</div>
+                                </div>
+                            </div>
+                            <div class="timeline-item" data-time="1005">
+                                <div class="preview-thumb">
+                                    <canvas class="thumb-canvas" width="80" height="45"></canvas>
+                                    <span class="thumb-time">16:45</span>
+                                </div>
+                                <div class="item-info">
+                                    <div class="time-label">16:45</div>
+                                    <div class="item-desc">байнит</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -644,10 +702,14 @@
     let isDragging = false;
     let wasPlaying = false;
     let previewFrameTimeout = null;
+    let isSeeking = false;
 
     // Настройка canvas для превью
     previewCanvas.width = 160;
     previewCanvas.height = 90;
+
+    // === КЭШ ПРЕВЬЮ ДЛЯ ТАЙМКОДОВ ===
+    const thumbCache = new Map();
 
     function showControls() {
         controls.classList.add('show');
@@ -694,64 +756,102 @@
         }
     }
 
-    // === ФУНКЦИЯ ДЛЯ ЗАХВАТА КАДРА ===
-    function capturePreviewFrame(time) {
-        return new Promise((resolve) => {
-            // Сохраняем текущее состояние
-            const wasPaused = video.paused;
-            const currentTime = video.currentTime;
-            
-            // Ищем ближайший загруженный фрагмент
-            let seekTime = time;
-            if (video.buffered.length > 0) {
-                let found = false;
-                for (let i = 0; i < video.buffered.length; i++) {
-                    const start = video.buffered.start(i);
-                    const end = video.buffered.end(i);
-                    if (time >= start && time <= end) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    // Если время не загружено, используем ближайшее доступное
-                    const lastBuffer = video.buffered.end(video.buffered.length - 1);
-                    seekTime = Math.min(time, lastBuffer - 0.1);
+    // === ФУНКЦИЯ ДЛЯ ЗАХВАТА КАДРА С КЭШИРОВАНИЕМ ===
+    function capturePreviewFrame(time, canvas, callback) {
+        // Проверяем кэш
+        const cacheKey = Math.round(time * 10) / 10;
+        if (thumbCache.has(cacheKey)) {
+            const cachedData = thumbCache.get(cacheKey);
+            const img = new Image();
+            img.onload = () => {
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                if (callback) callback();
+            };
+            img.src = cachedData;
+            return;
+        }
+
+        // Если видео не загружено, пробуем позже
+        if (video.readyState < 2) {
+            setTimeout(() => capturePreviewFrame(time, canvas, callback), 200);
+            return;
+        }
+
+        // Сохраняем текущее состояние
+        const wasPaused = video.paused;
+        const currentTime = video.currentTime;
+
+        // Проверяем доступность времени в буфере
+        let seekTime = time;
+        let isBuffered = false;
+        if (video.buffered.length > 0) {
+            for (let i = 0; i < video.buffered.length; i++) {
+                const start = video.buffered.start(i);
+                const end = video.buffered.end(i);
+                if (time >= start && time <= end) {
+                    isBuffered = true;
+                    break;
                 }
             }
+        }
 
-            // Временная функция для захвата кадра
-            const captureFrame = () => {
-                try {
-                    ctx.drawImage(video, 0, 0, previewCanvas.width, previewCanvas.height);
-                    resolve();
-                } catch (e) {
-                    resolve();
-                }
-            };
+        // Если время не в буфере, используем ближайшее доступное
+        if (!isBuffered && video.buffered.length > 0) {
+            const lastBuffer = video.buffered.end(video.buffered.length - 1);
+            seekTime = Math.min(time, Math.max(0, lastBuffer - 0.1));
+        }
 
-            // Если видео уже на нужной позиции
-            if (Math.abs(video.currentTime - seekTime) < 0.05) {
-                captureFrame();
-                return;
+        // Если все еще недоступно, используем текущее время
+        if (isNaN(seekTime) || seekTime < 0) {
+            seekTime = video.currentTime;
+        }
+
+        const captureFrame = () => {
+            try {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = canvas.width;
+                tempCanvas.height = canvas.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.7);
+                
+                // Сохраняем в кэш
+                thumbCache.set(cacheKey, dataUrl);
+                
+                // Отображаем
+                const img = new Image();
+                img.onload = () => {
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    if (callback) callback();
+                };
+                img.src = dataUrl;
+            } catch (e) {
+                console.warn('Capture error:', e);
+                if (callback) callback();
             }
+        };
 
-            // Перематываем и захватываем кадр
-            const onSeeked = () => {
-                video.removeEventListener('seeked', onSeeked);
-                captureFrame();
-                // Возвращаем исходное состояние
-                if (!wasPaused) {
-                    video.play().catch(() => {});
-                }
-            };
+        // Если уже на нужной позиции
+        if (Math.abs(video.currentTime - seekTime) < 0.05) {
+            captureFrame();
+            return;
+        }
 
-            video.addEventListener('seeked', onSeeked);
-            video.currentTime = seekTime;
-        });
+        // Перематываем и захватываем
+        const onSeeked = () => {
+            video.removeEventListener('seeked', onSeeked);
+            captureFrame();
+            // Возвращаем исходное состояние
+            if (!wasPaused) {
+                video.play().catch(() => {});
+            }
+        };
+
+        video.addEventListener('seeked', onSeeked);
+        video.currentTime = seekTime;
     }
 
-    // === ПРОГРЕСС-БАР С ПРЕВЬЮ ===
+    // === ПРОГРЕСС-БАР С ПРЕВЬЮ (ОПТИМИЗИРОВАННАЯ ВЕРСИЯ) ===
     function updateProgress(e) {
         const rect = progressBar.getBoundingClientRect();
         let x = (e.clientX || e.touches?.[0]?.clientX || 0) - rect.left;
@@ -759,7 +859,7 @@
         const percent = x / rect.width;
         const time = percent * video.duration;
 
-        if (!isNaN(time) && video.duration > 0) {
+        if (!isNaN(time) && video.duration > 0 && !isSeeking) {
             // Обновляем прогресс-бар
             progressFill.style.width = percent * 100 + '%';
 
@@ -770,17 +870,20 @@
             const tooltipX = Math.max(10, Math.min(x, rect.width - 80));
             previewTooltip.style.left = tooltipX + 'px';
 
-            // Показываем превью с задержкой для производительности
+            // Показываем превью только если не перематываем
             clearTimeout(previewFrameTimeout);
             previewFrameTimeout = setTimeout(() => {
-                capturePreviewFrame(time);
-            }, 50);
+                if (!isSeeking) {
+                    capturePreviewFrame(time, previewCanvas);
+                }
+            }, 100);
         }
     }
 
     function startDrag(e) {
         isDragging = true;
         wasPlaying = !video.paused;
+        isSeeking = true;
         
         // Останавливаем видео во время перетаскивания
         video.pause();
@@ -799,6 +902,7 @@
     function endDrag(e) {
         if (isDragging) {
             isDragging = false;
+            isSeeking = false;
             previewTooltip.classList.remove('show');
             clearTimeout(previewFrameTimeout);
 
@@ -849,11 +953,36 @@
         }
     });
 
+    // === ЗАГРУЗКА ПРЕВЬЮ ДЛЯ ТАЙМКОДОВ ===
+    function loadThumbnails() {
+        const items = timelineMenu.querySelectorAll('.timeline-item');
+        items.forEach(item => {
+            const time = parseFloat(item.dataset.time);
+            const canvas = item.querySelector('.thumb-canvas');
+            if (canvas && !isNaN(time)) {
+                // Загружаем превью с задержкой
+                setTimeout(() => {
+                    capturePreviewFrame(time, canvas);
+                }, 1000);
+            }
+        });
+    }
+
+    // Загружаем превью после загрузки видео
+    video.addEventListener('loadedmetadata', () => {
+        setTimeout(loadThumbnails, 500);
+    });
+
+    // Если видео уже загружено
+    if (video.readyState >= 1) {
+        setTimeout(loadThumbnails, 500);
+    }
+
     // === СОБЫТИЯ ===
     wrapper.addEventListener('click', (e) => {
         if (e.target.closest('button') || e.target.closest('.center-play') || 
             e.target.closest('.speed-dropdown') || e.target.closest('.timeline-dropdown') ||
-            e.target.closest('.progress-bar')) {
+            e.target.closest('.progress-bar') || e.target.closest('.timeline-item')) {
             return;
         }
         toggleControls();
@@ -898,7 +1027,7 @@
         const total = formatTime(video.duration);
         timeDisplay.textContent = `${current} / ${total}`;
 
-        if (video.duration > 0 && !isDragging) {
+        if (video.duration > 0 && !isDragging && !isSeeking) {
             const percent = (video.currentTime / video.duration) * 100;
             progressFill.style.width = percent + '%';
         }
@@ -915,6 +1044,8 @@
     timelineBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         timelineMenu.classList.toggle('show');
+        // Загружаем превью если еще не загружены
+        loadThumbnails();
     });
 
     document.addEventListener('click', () => {
@@ -922,14 +1053,17 @@
         speedMenu.classList.remove('show');
     });
 
-    timelineMenu.querySelectorAll('button').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+    timelineMenu.querySelectorAll('.timeline-item').forEach(item => {
+        item.addEventListener('click', (e) => {
             e.stopPropagation();
-            const time = parseFloat(btn.dataset.time);
+            const time = parseFloat(item.dataset.time);
             if (!isNaN(time) && video.duration > 0) {
                 video.currentTime = time;
                 progressFill.style.width = (time / video.duration) * 100 + '%';
                 showControls();
+                if (!video.paused) {
+                    video.play().catch(() => {});
+                }
             }
             timelineMenu.classList.remove('show');
         });
@@ -1011,7 +1145,6 @@
         if (e.key === 'Escape' && document.fullscreenElement) {
             toggleFullscreen();
         }
-        // Клавиатурные команды для видео
         if (e.key === ' ' || e.key === 'k') {
             e.preventDefault();
             togglePlay();
