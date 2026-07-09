@@ -16,7 +16,7 @@
             font-family: 'Segoe UI', Arial, sans-serif;
             display: flex;
             justify-content: center;
-            padding: 30px 20px;
+            padding: 20px;
             overflow-x: hidden;
         }
         .container {
@@ -24,12 +24,17 @@
             width: 100%;
         }
 
+        /* === ПЛЕЕР === */
         .player-container {
             position: relative;
             width: 100%;
             background: #000;
             border-radius: 12px;
             overflow: hidden;
+            display: none;
+        }
+        .player-container.active {
+            display: block;
         }
 
         .video-wrapper {
@@ -156,43 +161,6 @@
         }
         .progress-bar:hover .progress-fill::after {
             opacity: 1;
-        }
-
-        .preview-tooltip {
-            display: none;
-            position: absolute;
-            bottom: 25px;
-            left: 0;
-            width: 160px;
-            height: 90px;
-            background: #000;
-            border: 2px solid rgba(255,255,255,0.8);
-            border-radius: 4px;
-            overflow: hidden;
-            z-index: 15;
-            transform: translateX(-50%);
-            pointer-events: none;
-        }
-        .preview-tooltip.show {
-            display: block;
-        }
-        .preview-tooltip video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            background: #000;
-        }
-        .preview-tooltip .preview-time {
-            position: absolute;
-            bottom: 4px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.7);
-            color: #fff;
-            font-size: 12px;
-            padding: 2px 8px;
-            border-radius: 3px;
-            font-family: monospace;
         }
 
         .controls-bottom {
@@ -383,26 +351,36 @@
             margin-right: 8px;
         }
 
-        .video-info {
-            margin-top: 16px;
+        .close-fs {
+            display: none;
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            z-index: 20;
+            background: rgba(0,0,0,0.6);
+            border: none;
+            color: #fff;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 8px 14px;
+            border-radius: 8px;
+            transition: 0.2s;
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
         }
-        .video-title {
-            font-size: 20px;
-            font-weight: 600;
-            line-height: 1.4;
+        .close-fs:focus {
+            outline: none;
         }
-        .video-meta {
-            color: #aaa;
-            font-size: 14px;
-            margin-top: 6px;
+        .close-fs:hover {
+            background: rgba(255,0,0,0.6);
         }
-        .video-description {
-            color: #aaa;
-            font-size: 14px;
-            margin-top: 10px;
-            line-height: 1.6;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #2a2a2a;
+        .close-fs:active {
+            transform: scale(0.92);
+        }
+        .player-container:-webkit-full-screen .close-fs,
+        .player-container:-moz-full-screen .close-fs,
+        .player-container:fullscreen .close-fs {
+            display: block;
         }
 
         .player-container:-webkit-full-screen {
@@ -462,47 +440,120 @@
             display: none !important;
         }
 
-        .close-fs {
-            display: none;
+        /* === ГЛАВНЫЙ ЭКРАН === */
+        .main-screen {
+            display: block;
+        }
+        .main-screen h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        .video-card {
+            background: #1a1a1a;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .video-card:hover {
+            transform: scale(1.02);
+        }
+        .video-card:active {
+            transform: scale(0.96);
+        }
+        .video-card .thumbnail {
+            width: 100%;
+            padding-top: 56.25%;
+            background: #2a2a2a;
+            position: relative;
+            overflow: hidden;
+        }
+        .video-card .thumbnail video {
             position: absolute;
-            top: 16px;
-            right: 16px;
-            z-index: 20;
-            background: rgba(0,0,0,0.6);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .video-card .thumbnail .play-icon-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 48px;
+            height: 48px;
+            background: rgba(255,0,0,0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .video-card .thumbnail .play-icon-overlay svg {
+            width: 24px;
+            height: 24px;
+            fill: #fff;
+            margin-left: 3px;
+        }
+        .video-card .card-info {
+            padding: 12px;
+        }
+        .video-card .card-info .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .video-card .card-info .card-meta {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .back-btn {
+            display: none;
+            background: none;
             border: none;
             color: #fff;
-            font-size: 28px;
+            font-size: 16px;
             cursor: pointer;
-            padding: 8px 14px;
-            border-radius: 8px;
-            transition: 0.2s;
+            padding: 10px 0;
+            margin-bottom: 12px;
             -webkit-tap-highlight-color: transparent;
-            outline: none;
         }
-        .close-fs:focus {
-            outline: none;
+        .back-btn:hover {
+            color: #ff0000;
         }
-        .close-fs:hover {
-            background: rgba(255,0,0,0.6);
-        }
-        .close-fs:active {
-            transform: scale(0.92);
-        }
-        .player-container:-webkit-full-screen .close-fs,
-        .player-container:-moz-full-screen .close-fs,
-        .player-container:fullscreen .close-fs {
-            display: block;
+        .back-btn.show {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         @media (max-width: 700px) {
             body {
-                padding: 16px 10px;
+                padding: 12px;
             }
-            .video-title {
-                font-size: 16px;
+            .main-screen h1 {
+                font-size: 20px;
             }
-            .video-description {
-                font-size: 13px;
+            .video-grid {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                gap: 10px;
+            }
+            .video-card .card-info .card-title {
+                font-size: 12px;
+            }
+            .video-card .card-info .card-meta {
+                font-size: 11px;
             }
             .controls-bottom button svg {
                 width: 20px;
@@ -520,29 +571,19 @@
                 width: 28px;
                 height: 28px;
             }
-            .preview-tooltip {
-                width: 120px;
-                height: 68px;
-            }
-            .timeline-dropdown .dropdown-content {
-                min-width: 140px;
-            }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <!-- Кнопка назад -->
+    <button class="back-btn" id="backBtn">← Назад к списку</button>
+
+    <!-- Плеер -->
     <div class="player-container" id="playerContainer">
         <div class="video-wrapper" id="videoWrapper">
-            <video id="myVideo" preload="metadata" playsinline>
-                <source src="https://cs4.vps-vids.com/vids738930/sexstud27873.mp4?hash=209a80d41d94eff5a0889a93e3c674ba&expires=1783631009&ip=77.220.50.105" type="video/mp4">
-            </video>
-
-            <div class="preview-tooltip" id="previewTooltip">
-                <video id="previewVideo" muted preload="auto"></video>
-                <div class="preview-time" id="previewTime">00:00</div>
-            </div>
+            <video id="myVideo" preload="metadata" playsinline></video>
 
             <div class="overlay" id="overlay"></div>
 
@@ -597,15 +638,73 @@
         <button class="close-fs" id="closeFsBtn">✕</button>
     </div>
 
-    <div class="video-info" id="videoInfo">
-        <div class="video-title">Назвал девушку и грубо заставил отрабатывать измену</div>
-        <div class="video-meta">© 1.46M просмотров</div>
-        <div class="video-description">Назвал девушку и грубо заставил отрабатывать измену</div>
+    <!-- Главный экран -->
+    <div class="main-screen" id="mainScreen">
+        <h1>🎬 Мои видео</h1>
+        <div class="video-grid" id="videoGrid">
+            <!-- Видео 1 -->
+            <div class="video-card" data-video="https://cs4.vps-vids.com/vids738930/sexstud27873.mp4?hash=209a80d41d94eff5a0889a93e3c674ba&expires=1783631009&ip=77.220.50.105" data-title="Назвал девушку и грубо заставил отрабатывать измену" data-duration="18:30">
+                <div class="thumbnail">
+                    <video muted preload="metadata" src="https://cs4.vps-vids.com/vids738930/sexstud27873.mp4?hash=209a80d41d94eff5a0889a93e3c674ba&expires=1783631009&ip=77.220.50.105"></video>
+                    <div class="play-icon-overlay">
+                        <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+                    </div>
+                </div>
+                <div class="card-info">
+                    <div class="card-title">Назвал девушку и грубо заставил отрабатывать измену</div>
+                    <div class="card-meta">18:30 · 1.46M просмотров</div>
+                </div>
+            </div>
+
+            <!-- Видео 2 -->
+            <div class="video-card" data-video="https://cs4.vps-vids.com/vids738930/sexstud27873.mp4?hash=209a80d41d94eff5a0889a93e3c674ba&expires=1783631009&ip=77.220.50.105" data-title="Второе видео для теста" data-duration="12:15">
+                <div class="thumbnail">
+                    <video muted preload="metadata" src="https://cs4.vps-vids.com/vids738930/sexstud27873.mp4?hash=209a80d41d94eff5a0889a93e3c674ba&expires=1783631009&ip=77.220.50.105"></video>
+                    <div class="play-icon-overlay">
+                        <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+                    </div>
+                </div>
+                <div class="card-info">
+                    <div class="card-title">Второе видео для теста</div>
+                    <div class="card-meta">12:15 · 856K просмотров</div>
+                </div>
+            </div>
+
+            <!-- Видео 3 -->
+            <div class="video-card" data-video="https://cs4.vps-vids.com/vids738930/sexstud27873.mp4?hash=209a80d41d94eff5a0889a93e3c674ba&expires=1783631009&ip=77.220.50.105" data-title="Третье видео с длинным названием чтобы проверить как обрезается текст" data-duration="25:42">
+                <div class="thumbnail">
+                    <video muted preload="metadata" src="https://cs4.vps-vids.com/vids738930/sexstud27873.mp4?hash=209a80d41d94eff5a0889a93e3c674ba&expires=1783631009&ip=77.220.50.105"></video>
+                    <div class="play-icon-overlay">
+                        <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+                    </div>
+                </div>
+                <div class="card-info">
+                    <div class="card-title">Третье видео с длинным названием чтобы проверить как обрезается текст</div>
+                    <div class="card-meta">25:42 · 2.3M просмотров</div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
+    // === ДАННЫЕ ===
+    let currentVideoIndex = 0;
+    const videoData = [];
+
+    document.querySelectorAll('.video-card').forEach((card, index) => {
+        videoData.push({
+            src: card.dataset.video,
+            title: card.dataset.title,
+            duration: card.dataset.duration
+        });
+    });
+
+    // === ЭЛЕМЕНТЫ ===
+    const mainScreen = document.getElementById('mainScreen');
     const playerContainer = document.getElementById('playerContainer');
+    const backBtn = document.getElementById('backBtn');
+    const videoGrid = document.getElementById('videoGrid');
     const video = document.getElementById('myVideo');
     const wrapper = document.getElementById('videoWrapper');
     const controls = document.getElementById('controls');
@@ -622,16 +721,58 @@
     const fullscreenBtn = document.getElementById('fullscreenBtn');
     const closeFsBtn = document.getElementById('closeFsBtn');
     const fsIcon = document.getElementById('fsIcon');
-    const videoInfo = document.getElementById('videoInfo');
-    const previewTooltip = document.getElementById('previewTooltip');
-    const previewVideo = document.getElementById('previewVideo');
-    const previewTime = document.getElementById('previewTime');
 
     let controlsTimeout = null;
     let isControlsVisible = false;
     let isDragging = false;
-    let seekTimeout = null;
+    let isPlayerOpen = false;
 
+    // === ПЕРЕКЛЮЧЕНИЕ МЕЖДУ ГЛАВНЫМ ЭКРАНОМ И ПЛЕЕРОМ ===
+    function openPlayer(src, title) {
+        mainScreen.style.display = 'none';
+        playerContainer.classList.add('active');
+        backBtn.classList.add('show');
+        isPlayerOpen = true;
+
+        // Загружаем видео
+        video.src = src;
+        video.load();
+        video.play().then(() => {
+            playIcon.setAttribute('d', 'M6,4h4v16H6V4z M14,4h4v16h-4V4z');
+            centerPlay.classList.remove('show');
+            showControls();
+        }).catch(() => {
+            // Автоплей заблокирован — показываем кнопку
+            centerPlay.classList.add('show');
+            showControls();
+        });
+    }
+
+    function closePlayer() {
+        video.pause();
+        video.src = '';
+        video.load();
+        playerContainer.classList.remove('active');
+        backBtn.classList.remove('show');
+        mainScreen.style.display = 'block';
+        isPlayerOpen = false;
+        centerPlay.classList.add('show');
+        playIcon.setAttribute('d', 'M5,3 L19,12 L5,21 Z');
+    }
+
+    // === КЛИК ПО ВИДЕО В СПИСКЕ ===
+    videoGrid.querySelectorAll('.video-card').forEach((card) => {
+        card.addEventListener('click', () => {
+            const src = card.dataset.video;
+            const title = card.dataset.title;
+            openPlayer(src, title);
+        });
+    });
+
+    // === КНОПКА НАЗАД ===
+    backBtn.addEventListener('click', closePlayer);
+
+    // === УПРАВЛЕНИЕ ПЛЕЕРОМ ===
     function showControls() {
         controls.classList.add('show');
         if (video.paused) {
@@ -677,43 +818,26 @@
         }
     }
 
-    // === ПРОГРЕСС-БАР С МГНОВЕННОЙ ПЕРЕМОТКОЙ ===
+    // === ПРОГРЕСС-БАР ===
     function getTimeFromEvent(e) {
         const rect = progressBar.getBoundingClientRect();
         let x = (e.clientX || e.touches?.[0]?.clientX || 0) - rect.left;
         x = Math.max(0, Math.min(x, rect.width));
         const percent = x / rect.width;
-        return { time: percent * video.duration, percent, x };
+        return { time: percent * video.duration, percent };
     }
 
     function updateProgress(e) {
         if (!video.duration) return;
-        
-        const { time, percent, x } = getTimeFromEvent(e);
+        const { time, percent } = getTimeFromEvent(e);
         if (isNaN(time)) return;
-
-        // МГНОВЕННО перематываем основное видео
         video.currentTime = time;
         progressFill.style.width = percent * 100 + '%';
-
-        // Обновляем превью
-        const tooltipX = Math.max(0, Math.min(x, progressBar.offsetWidth - 80));
-        previewTooltip.style.left = tooltipX + 'px';
-        previewTime.textContent = formatTime(time);
-
-        // Показываем кадр в превью
-        if (previewVideo.src !== video.src) {
-            previewVideo.src = video.src;
-            previewVideo.load();
-        }
-        previewVideo.currentTime = time;
-        previewVideo.play().catch(() => {});
     }
 
     function startDrag(e) {
         e.preventDefault();
         isDragging = true;
-        previewTooltip.classList.add('show');
         video.pause();
         updateProgress(e);
     }
@@ -728,16 +852,12 @@
     function endDrag(e) {
         if (isDragging) {
             isDragging = false;
-            previewTooltip.classList.remove('show');
-            previewVideo.pause();
-
             const { time } = getTimeFromEvent(e);
             if (!isNaN(time) && video.duration) {
                 video.currentTime = time;
                 const percent = (time / video.duration) * 100;
                 progressFill.style.width = percent + '%';
             }
-
             if (video.paused) {
                 centerPlay.classList.add('show');
                 showControls();
@@ -748,12 +868,10 @@
         }
     }
 
-    // Мышь
     progressBar.addEventListener('mousedown', startDrag);
     document.addEventListener('mousemove', moveDrag);
     document.addEventListener('mouseup', endDrag);
 
-    // Тач
     progressBar.addEventListener('touchstart', startDrag);
     document.addEventListener('touchmove', moveDrag, { passive: false });
     document.addEventListener('touchend', endDrag);
@@ -768,11 +886,11 @@
     });
 
     wrapper.addEventListener('mouseenter', () => {
-        showControls();
+        if (isPlayerOpen) showControls();
     });
 
     wrapper.addEventListener('mouseleave', () => {
-        if (!video.paused && !isDragging) {
+        if (!video.paused && !isDragging && isPlayerOpen) {
             clearTimeout(controlsTimeout);
             controlsTimeout = setTimeout(() => {
                 if (!video.paused && !isDragging) {
@@ -899,10 +1017,7 @@
 
     document.addEventListener('fullscreenchange', () => {
         if (!document.fullscreenElement) {
-            videoInfo.style.display = 'block';
             fsIcon.setAttribute('d', 'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z');
-        } else {
-            videoInfo.style.display = 'none';
         }
         showControls();
     });
@@ -924,6 +1039,7 @@
         }
     });
 
+    // === СТАРТ ===
     setTimeout(() => {
         showControls();
     }, 500);
