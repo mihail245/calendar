@@ -197,36 +197,30 @@
         let isDragging = false;
         let wasPlaying = false;
         let previewFrameTimeout = null;
-        let previewCache = {}; // Кэш для превью
 
         previewCanvas.width = 160;
         previewCanvas.height = 90;
 
-        // === ГЕНЕРАЦИЯ ПРЕВЬЮ (гарантированный способ) ===
-        function generatePreview(videoSrc, timeSeconds, callback) {
-            // Проверяем кэш
-            const cacheKey = videoSrc + '_' + timeSeconds;
-            if (previewCache[cacheKey]) {
-                callback(previewCache[cacheKey]);
-                return;
-            }
-
+        // === ПРОСТОЙ СПОСОБ ПРЕВЬЮ - ИСПОЛЬЗУЕМ ВИДЕО КАК ИСТОЧНИК ===
+        function createPreviewFromVideo(videoSrc, timeSeconds, callback) {
+            // Создаём скрытое видео
             const tempVideo = document.createElement('video');
             tempVideo.src = videoSrc;
             tempVideo.crossOrigin = 'anonymous';
             tempVideo.preload = 'metadata';
+            tempVideo.style.display = 'none';
+            document.body.appendChild(tempVideo);
 
-            let isLoaded = false;
+            let isReady = false;
 
-            const captureFrame = () => {
+            const capture = () => {
                 try {
                     const canvas = document.createElement('canvas');
                     canvas.width = 320;
                     canvas.height = 180;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                    previewCache[cacheKey] = dataUrl;
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
                     callback(dataUrl);
                 } catch (e) {
                     callback(null);
@@ -235,36 +229,39 @@
                 tempVideo.pause();
                 tempVideo.src = '';
                 tempVideo.load();
+                document.body.removeChild(tempVideo);
             };
 
-            const onSeeked = () => {
-                tempVideo.removeEventListener('seeked', onSeeked);
-                captureFrame();
-            };
-
-            const onLoaded = () => {
-                if (isLoaded) return;
-                isLoaded = true;
+            const onReady = () => {
+                if (isReady) return;
+                isReady = true;
                 const safeTime = Math.min(timeSeconds, tempVideo.duration - 0.5);
-                if (safeTime > 0) {
-                    tempVideo.addEventListener('seeked', onSeeked);
+                if (safeTime > 0 && tempVideo.readyState >= 2) {
                     tempVideo.currentTime = safeTime;
+                    tempVideo.addEventListener('seeked', () => {
+                        capture();
+                    }, { once: true });
+                    // Если seeked не сработал через 1 секунду - всё равно пробуем захватить
+                    setTimeout(() => {
+                        if (!isReady) return;
+                        capture();
+                    }, 1000);
                 } else {
-                    captureFrame();
+                    capture();
                 }
             };
 
-            tempVideo.addEventListener('loadedmetadata', onLoaded);
-            tempVideo.addEventListener('loadeddata', onLoaded);
+            tempVideo.addEventListener('loadeddata', onReady);
+            tempVideo.addEventListener('loadedmetadata', onReady);
             
-            // Если видео не загрузилось через 5 секунд - отдаём null
+            // Если видео не загрузилось через 5 секунд
             setTimeout(() => {
-                if (!isLoaded) {
+                if (!isReady) {
                     callback(null);
+                    document.body.removeChild(tempVideo);
                 }
             }, 5000);
 
-            // Загружаем видео
             tempVideo.load();
         }
 
@@ -302,7 +299,7 @@
                 // Контейнер для превью
                 const thumbnailDiv = document.createElement('div');
                 thumbnailDiv.className = 'thumbnail';
-                thumbnailDiv.innerHTML = '🎬';
+                thumbnailDiv.textContent = '🎬';
                 card.appendChild(thumbnailDiv);
 
                 // Информация
@@ -315,7 +312,7 @@
                 `;
                 card.appendChild(infoDiv);
 
-                // Генерируем превью в фоне
+                // Генерируем превью
                 let previewTimeSeconds = 5;
                 if (videoItem.previewTime !== undefined) {
                     previewTimeSeconds = videoItem.previewTime;
@@ -324,9 +321,16 @@
                     if (firstMark) previewTimeSeconds = firstMark.time;
                 }
 
-                generatePreview(videoItem.src, previewTimeSeconds, (dataUrl) => {
+                createPreviewFromVideo(videoItem.src, previewTimeSeconds, (dataUrl) => {
                     if (dataUrl) {
-                        thumbnailDiv.innerHTML = `<img src="${dataUrl}" alt="Превью">`;
+                        thumbnailDiv.innerHTML = '';
+                        const img = document.createElement('img');
+                        img.src = dataUrl;
+                        img.alt = 'Превью';
+                        img.style.width = '100%';
+                        img.style.height = '100%';
+                        img.style.objectFit = 'cover';
+                        thumbnailDiv.appendChild(img);
                     }
                 });
 
@@ -335,7 +339,7 @@
             });
         }
 
-        // === ОСТАЛЬНЫЕ ФУНКЦИИ (без изменений) ===
+        // === ОСТАЛЬНЫЕ ФУНКЦИИ ===
         function openPlayer(videoData) {
             currentVideo = videoData;
             mainScreen.style.display = 'none';
