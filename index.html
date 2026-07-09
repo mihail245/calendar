@@ -43,75 +43,145 @@
             display: block;
             background: #000;
         }
-        .controls {
-            margin-top: 15px;
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 10px;
-            background: #2a2a2a;
-            padding: 12px 16px;
-            border-radius: 8px;
-        }
-        .controls button {
-            background: #ff9900;
-            border: none;
-            color: #000;
-            font-weight: bold;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: 0.2s;
-            white-space: nowrap;
-        }
-        .controls button:hover {
-            background: #ffaa33;
-            transform: scale(1.05);
-        }
-        .controls button.secondary {
-            background: #444;
-            color: #fff;
-        }
-        .controls button.secondary:hover {
-            background: #666;
-        }
-        .controls .speed-label {
-            color: #fff;
-            font-size: 14px;
-            margin-left: 5px;
-            background: #333;
-            padding: 4px 10px;
-            border-radius: 4px;
-            min-width: 45px;
-            text-align: center;
-        }
-        .controls .time-display {
-            color: #aaa;
-            font-size: 14px;
-            margin-left: auto;
-            font-family: monospace;
-        }
+
+        /* Прогресс-бар */
         .progress-bar {
             width: 100%;
-            height: 6px;
+            height: 4px;
             background: #444;
-            border-radius: 3px;
-            margin-bottom: 12px;
+            border-radius: 2px;
+            margin: 12px 0;
             cursor: pointer;
             position: relative;
         }
         .progress-fill {
             height: 100%;
             background: #ff9900;
-            border-radius: 3px;
+            border-radius: 2px;
             width: 0%;
             transition: width 0.1s;
         }
-        @media (max-width: 600px) {
-            .controls button {
-                padding: 6px 12px;
+
+        /* Нижняя панель управления */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #1a1a1a;
+            padding: 8px 4px;
+        }
+
+        /* Кнопка Play/Pause */
+        .controls button.play-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0 4px;
+            transition: 0.2s;
+            width: 36px;
+            text-align: center;
+        }
+        .controls button.play-btn:hover {
+            color: #ff9900;
+        }
+
+        /* Время */
+        .time-display {
+            color: #aaa;
+            font-size: 14px;
+            font-family: monospace;
+            min-width: 50px;
+        }
+
+        /* Дропдаун скорости */
+        .speed-dropdown {
+            position: relative;
+            display: inline-block;
+            margin-left: auto;
+        }
+        .speed-dropdown .speed-btn {
+            background: transparent;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: 0.2s;
+            min-width: 52px;
+            text-align: center;
+        }
+        .speed-dropdown .speed-btn:hover {
+            border-color: #ff9900;
+            color: #ff9900;
+        }
+
+        .speed-dropdown .dropdown-content {
+            display: none;
+            position: absolute;
+            bottom: 110%;
+            right: 0;
+            background: #2a2a2a;
+            border-radius: 6px;
+            min-width: 80px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+            overflow: hidden;
+            z-index: 10;
+        }
+        .speed-dropdown .dropdown-content.show {
+            display: block;
+        }
+        .speed-dropdown .dropdown-content button {
+            display: block;
+            width: 100%;
+            padding: 8px 14px;
+            background: transparent;
+            border: none;
+            color: #ddd;
+            font-size: 13px;
+            cursor: pointer;
+            text-align: left;
+            transition: 0.15s;
+        }
+        .speed-dropdown .dropdown-content button:hover {
+            background: #ff9900;
+            color: #000;
+        }
+        .speed-dropdown .dropdown-content button.active {
+            background: #ff9900;
+            color: #000;
+            font-weight: bold;
+        }
+
+        /* Кнопка Fullscreen */
+        .controls button.fs-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 22px;
+            cursor: pointer;
+            padding: 0 4px;
+            transition: 0.2s;
+        }
+        .controls button.fs-btn:hover {
+            color: #ff9900;
+        }
+
+        @media (max-width: 500px) {
+            .controls {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .time-display {
                 font-size: 12px;
+                min-width: 40px;
+            }
+            .speed-dropdown .speed-btn {
+                font-size: 12px;
+                padding: 3px 10px;
+                min-width: 44px;
             }
         }
     </style>
@@ -121,7 +191,6 @@
 <div class="player-container">
     <div class="video-wrapper">
         <video id="myVideo" preload="metadata">
-            <!-- Вставьте ваше видео сюда -->
             <source src="https://cs4.vps-vids.com/vids738930/sexstud27873.mp4?hash=209a80d41d94eff5a0889a93e3c674ba&expires=1783631009&ip=77.220.50.105" type="video/mp4">
         </video>
     </div>
@@ -131,75 +200,116 @@
         <div class="progress-fill" id="progressFill"></div>
     </div>
 
-    <!-- Кнопки управления -->
+    <!-- Управление -->
     <div class="controls">
-        <button id="playPauseBtn">▶ Воспроизвести</button>
-        <button class="secondary" id="rewindBtn">⏪ -10с</button>
-        <button class="secondary" id="forwardBtn">+10с ⏩</button>
-        
-        <button class="secondary" id="speedBtn">Скорость</button>
-        <span class="speed-label" id="speedDisplay">1.0x</span>
+        <!-- Play / Pause -->
+        <button class="play-btn" id="playPauseBtn">▶</button>
 
-        <button class="secondary" id="fullscreenBtn">⛶ На весь</button>
-        <span class="time-display" id="timeDisplay">00:00 / 00:00</span>
+        <!-- Время -->
+        <span class="time-display" id="timeDisplay">00:00</span>
+
+        <!-- Дропдаун скорости -->
+        <div class="speed-dropdown">
+            <button class="speed-btn" id="speedBtn">1x</button>
+            <div class="dropdown-content" id="speedMenu">
+                <button data-speed="0.5">0.5x</button>
+                <button data-speed="0.75">0.75x</button>
+                <button data-speed="1" class="active">1x</button>
+                <button data-speed="1.25">1.25x</button>
+            </div>
+        </div>
+
+        <!-- Fullscreen -->
+        <button class="fs-btn" id="fullscreenBtn">⛶</button>
     </div>
 </div>
 
 <script>
     const video = document.getElementById('myVideo');
     const playPauseBtn = document.getElementById('playPauseBtn');
-    const rewindBtn = document.getElementById('rewindBtn');
-    const forwardBtn = document.getElementById('forwardBtn');
-    const speedBtn = document.getElementById('speedBtn');
-    const speedDisplay = document.getElementById('speedDisplay');
-    const fullscreenBtn = document.getElementById('fullscreenBtn');
     const timeDisplay = document.getElementById('timeDisplay');
     const progressBar = document.getElementById('progressBar');
     const progressFill = document.getElementById('progressFill');
+    const speedBtn = document.getElementById('speedBtn');
+    const speedMenu = document.getElementById('speedMenu');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
 
-    // === Плей / Пауза ===
+    // === Play / Pause ===
     playPauseBtn.addEventListener('click', () => {
         if (video.paused) {
             video.play();
-            playPauseBtn.textContent = '⏸ Пауза';
+            playPauseBtn.textContent = '⏸';
         } else {
             video.pause();
-            playPauseBtn.textContent = '▶ Воспроизвести';
+            playPauseBtn.textContent = '▶';
         }
     });
 
-    // Обновляем кнопку при клике на само видео
     video.addEventListener('click', () => {
         if (video.paused) {
             video.play();
-            playPauseBtn.textContent = '⏸ Пауза';
+            playPauseBtn.textContent = '⏸';
         } else {
             video.pause();
-            playPauseBtn.textContent = '▶ Воспроизвести';
+            playPauseBtn.textContent = '▶';
         }
     });
 
-    // === Перемотка ===
-    rewindBtn.addEventListener('click', () => {
-        video.currentTime = Math.max(0, video.currentTime - 10);
+    video.addEventListener('ended', () => {
+        playPauseBtn.textContent = '▶';
     });
 
-    forwardBtn.addEventListener('click', () => {
-        video.currentTime = Math.min(video.duration, video.currentTime + 10);
+    // === Время и прогресс ===
+    video.addEventListener('timeupdate', () => {
+        timeDisplay.textContent = formatTime(video.currentTime);
+        if (video.duration) {
+            const percent = (video.currentTime / video.duration) * 100;
+            progressFill.style.width = percent + '%';
+        }
     });
 
-    // === Смена скорости (циклично) ===
-    const speeds = [0.5, 1.0, 1.5, 2.0];
-    let speedIndex = 1; // по умолчанию 1.0x
-
-    speedBtn.addEventListener('click', () => {
-        speedIndex = (speedIndex + 1) % speeds.length;
-        const newSpeed = speeds[speedIndex];
-        video.playbackRate = newSpeed;
-        speedDisplay.textContent = newSpeed.toFixed(1) + 'x';
+    // Клик по прогресс-бару
+    progressBar.addEventListener('click', (e) => {
+        const rect = progressBar.getBoundingClientRect();
+        const clickX = (e.clientX - rect.left) / rect.width;
+        video.currentTime = clickX * video.duration;
     });
 
-    // === Полный экран ===
+    function formatTime(seconds) {
+        if (isNaN(seconds)) return '00:00';
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    // === Дропдаун скорости ===
+    speedBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        speedMenu.classList.toggle('show');
+    });
+
+    // Клик вне дропдауна — закрываем
+    document.addEventListener('click', () => {
+        speedMenu.classList.remove('show');
+    });
+
+    // Выбор скорости
+    speedMenu.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const speed = parseFloat(btn.dataset.speed);
+            video.playbackRate = speed;
+            speedBtn.textContent = speed + 'x';
+
+            // Активная кнопка
+            speedMenu.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            speedMenu.classList.remove('show');
+        });
+    });
+
+    // === Fullscreen ===
     fullscreenBtn.addEventListener('click', () => {
         const container = document.querySelector('.player-container');
         if (!document.fullscreenElement) {
@@ -209,37 +319,11 @@
         }
     });
 
-    // === Обновление времени и прогресс-бара ===
-    video.addEventListener('timeupdate', () => {
-        const current = formatTime(video.currentTime);
-        const total = formatTime(video.duration);
-        timeDisplay.textContent = `${current} / ${total}`;
-
-        // Прогресс
-        if (video.duration) {
-            const percent = (video.currentTime / video.duration) * 100;
-            progressFill.style.width = percent + '%';
+    // При выходе из fullscreen сбрасываем
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement) {
+            // можно добавить логику
         }
-    });
-
-    // === Клик по прогресс-бару ===
-    progressBar.addEventListener('click', (e) => {
-        const rect = progressBar.getBoundingClientRect();
-        const clickX = (e.clientX - rect.left) / rect.width;
-        video.currentTime = clickX * video.duration;
-    });
-
-    // === Форматирование времени ===
-    function formatTime(seconds) {
-        if (isNaN(seconds)) return '00:00';
-        const m = Math.floor(seconds / 60);
-        const s = Math.floor(seconds % 60);
-        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    }
-
-    // === Сброс кнопки при окончании ===
-    video.addEventListener('ended', () => {
-        playPauseBtn.textContent = '▶ Воспроизвести';
     });
 </script>
 
