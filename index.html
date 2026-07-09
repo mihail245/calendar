@@ -130,6 +130,7 @@
             margin-bottom: 10px;
             transition: height 0.2s;
             -webkit-tap-highlight-color: transparent;
+            touch-action: none;
         }
         .progress-bar:hover {
             height: 6px;
@@ -160,7 +161,7 @@
         .preview-tooltip {
             display: none;
             position: absolute;
-            bottom: 20px;
+            bottom: 25px;
             left: 0;
             width: 160px;
             height: 90px;
@@ -629,6 +630,7 @@
     let controlsTimeout = null;
     let isControlsVisible = false;
     let isDragging = false;
+    let seekTimeout = null;
 
     function showControls() {
         controls.classList.add('show');
@@ -675,44 +677,43 @@
         }
     }
 
-    // === ПРОГРЕСС-БАР С ПРЕВЬЮ И МГНОВЕННОЙ ПЕРЕМОТКОЙ ===
-    function updateProgress(e) {
+    // === ПРОГРЕСС-БАР С МГНОВЕННОЙ ПЕРЕМОТКОЙ ===
+    function getTimeFromEvent(e) {
         const rect = progressBar.getBoundingClientRect();
         let x = (e.clientX || e.touches?.[0]?.clientX || 0) - rect.left;
         x = Math.max(0, Math.min(x, rect.width));
         const percent = x / rect.width;
-        const time = percent * video.duration;
-
-        if (!isNaN(time) && video.duration) {
-            // Мгновенно перематываем видео
-            video.currentTime = time;
-            
-            // Обновляем прогресс-бар
-            progressFill.style.width = percent * 100 + '%';
-
-            // Обновляем превью
-            const tooltipX = Math.max(0, Math.min(x, rect.width - 80));
-            previewTooltip.style.left = tooltipX + 'px';
-            previewTime.textContent = formatTime(time);
-
-            if (previewVideo.src !== video.src) {
-                previewVideo.src = video.src;
-                previewVideo.load();
-            }
-            
-            // Показываем кадр из видео
-            previewVideo.currentTime = time;
-            previewVideo.play().catch(() => {});
-        }
+        return { time: percent * video.duration, percent, x };
     }
 
-    function startDrag(e) {
-        isDragging = true;
-        previewTooltip.classList.add('show');
+    function updateProgress(e) {
+        if (!video.duration) return;
+        
+        const { time, percent, x } = getTimeFromEvent(e);
+        if (isNaN(time)) return;
+
+        // МГНОВЕННО перематываем основное видео
+        video.currentTime = time;
+        progressFill.style.width = percent * 100 + '%';
+
+        // Обновляем превью
+        const tooltipX = Math.max(0, Math.min(x, progressBar.offsetWidth - 80));
+        previewTooltip.style.left = tooltipX + 'px';
+        previewTime.textContent = formatTime(time);
+
+        // Показываем кадр в превью
         if (previewVideo.src !== video.src) {
             previewVideo.src = video.src;
             previewVideo.load();
         }
+        previewVideo.currentTime = time;
+        previewVideo.play().catch(() => {});
+    }
+
+    function startDrag(e) {
+        e.preventDefault();
+        isDragging = true;
+        previewTooltip.classList.add('show');
         video.pause();
         updateProgress(e);
     }
@@ -730,15 +731,11 @@
             previewTooltip.classList.remove('show');
             previewVideo.pause();
 
-            const rect = progressBar.getBoundingClientRect();
-            let x = (e.clientX || e.changedTouches?.[0]?.clientX || 0) - rect.left;
-            x = Math.max(0, Math.min(x, rect.width));
-            const percent = x / rect.width;
-            const time = percent * video.duration;
-
+            const { time } = getTimeFromEvent(e);
             if (!isNaN(time) && video.duration) {
                 video.currentTime = time;
-                progressFill.style.width = percent * 100 + '%';
+                const percent = (time / video.duration) * 100;
+                progressFill.style.width = percent + '%';
             }
 
             if (video.paused) {
@@ -757,21 +754,9 @@
     document.addEventListener('mouseup', endDrag);
 
     // Тач
-    progressBar.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        startDrag(e);
-    });
-    document.addEventListener('touchmove', (e) => {
-        if (isDragging) {
-            e.preventDefault();
-            moveDrag(e);
-        }
-    }, { passive: false });
-    document.addEventListener('touchend', (e) => {
-        if (isDragging) {
-            endDrag(e);
-        }
-    });
+    progressBar.addEventListener('touchstart', startDrag);
+    document.addEventListener('touchmove', moveDrag, { passive: false });
+    document.addEventListener('touchend', endDrag);
 
     // === СОБЫТИЯ ===
     wrapper.addEventListener('click', (e) => {
