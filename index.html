@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Видео плеер</title>
     <style>
         * {
@@ -17,6 +17,7 @@
             display: flex;
             justify-content: center;
             padding: 30px 20px;
+            overflow-x: hidden;
         }
         .container {
             max-width: 1000px;
@@ -47,9 +48,9 @@
             height: 100%;
             display: block;
             background: #000;
+            object-fit: cover;
         }
 
-        /* Затемнение */
         .overlay {
             position: absolute;
             top: 0;
@@ -65,7 +66,6 @@
             background: rgba(0,0,0,0.3);
         }
 
-        /* Центральная кнопка Play */
         .center-play {
             position: absolute;
             top: 50%;
@@ -240,7 +240,7 @@
             font-weight: bold;
         }
 
-        /* === FULLSCREEN (горизонтально) === */
+        /* === FULLSCREEN — ВИДЕО НА ВЕСЬ ЭКРАН БЕЗ ПОЛОС === */
         .player-container.fullscreen {
             position: fixed;
             top: 0;
@@ -257,7 +257,9 @@
             height: 100vh;
         }
         .player-container.fullscreen .video-wrapper video {
-            object-fit: contain;
+            object-fit: cover;
+            width: 100vw;
+            height: 100vh;
         }
 
         .close-fs {
@@ -282,7 +284,7 @@
             display: block;
         }
 
-        /* === ИНФОРМАЦИЯ ПОД ВИДЕО (как на 2 скриншоте) === */
+        /* === ИНФОРМАЦИЯ ПОД ВИДЕО === */
         .video-info {
             margin-top: 16px;
         }
@@ -305,7 +307,6 @@
             border-bottom: 1px solid #2a2a2a;
         }
 
-        /* Скрываем информацию в полноэкранном режиме */
         .player-container.fullscreen ~ .video-info {
             display: none;
         }
@@ -342,10 +343,9 @@
 <body>
 
 <div class="container">
-    <!-- Плеер -->
     <div class="player-container" id="playerContainer">
         <div class="video-wrapper" id="videoWrapper">
-            <video id="myVideo" preload="metadata">
+            <video id="myVideo" preload="metadata" playsinline>
                 <source src="https://cs4.vps-vids.com/vids738930/sexstud27873.mp4?hash=209a80d41d94eff5a0889a93e3c674ba&expires=1783631009&ip=77.220.50.105" type="video/mp4">
             </video>
 
@@ -376,6 +376,8 @@
                             <button data-speed="0.75">0.75x</button>
                             <button data-speed="1" class="active">1x</button>
                             <button data-speed="1.25">1.25x</button>
+                            <button data-speed="1.5">1.5x</button>
+                            <button data-speed="2">2x</button>
                         </div>
                     </div>
 
@@ -391,13 +393,10 @@
         <button class="close-fs" id="closeFsBtn">✕</button>
     </div>
 
-    <!-- Информация под видео (как на 2 скриншоте) -->
     <div class="video-info" id="videoInfo">
         <div class="video-title">Назвал девушку и грубо заставил отрабатывать измену</div>
         <div class="video-meta">© 1.46M просмотров</div>
-        <div class="video-description">
-            Назвал девушку и грубо заставил отрабатывать измену
-        </div>
+        <div class="video-description">Назвал девушку и грубо заставил отрабатывать измену</div>
     </div>
 </div>
 
@@ -422,7 +421,6 @@
     let controlsTimeout = null;
     let isControlsVisible = true;
 
-    // === ПОКАЗАТЬ/СКРЫТЬ УПРАВЛЕНИЕ ===
     function showControls() {
         controls.classList.add('show');
         centerPlay.classList.add('show');
@@ -466,7 +464,6 @@
         }
     });
 
-    // === PLAY / PAUSE ===
     function togglePlay() {
         if (video.paused) {
             video.play();
@@ -495,7 +492,6 @@
         centerPlay.classList.add('show');
     });
 
-    // === ВРЕМЯ И ПРОГРЕСС ===
     video.addEventListener('timeupdate', () => {
         const current = formatTime(video.currentTime);
         const total = formatTime(video.duration);
@@ -521,7 +517,6 @@
         return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     }
 
-    // === СКОРОСТЬ ===
     speedBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         speedMenu.classList.toggle('show');
@@ -546,7 +541,7 @@
         });
     });
 
-    // === FULLSCREEN ===
+    // === FULLSCREEN — ВИДЕО НА ВЕСЬ ЭКРАН БЕЗ ЧЕРНЫХ ПОЛОС ===
     function toggleFullscreen() {
         if (!playerContainer.classList.contains('fullscreen')) {
             playerContainer.classList.add('fullscreen');
