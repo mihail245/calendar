@@ -1,608 +1,1235 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Видео плеер</title>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #0f0f0f; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; min-height: 100vh; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        h1 { font-size: 24px; margin-bottom: 20px; font-weight: 400; }
-        #mainScreen { display: block; }
-        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-        .video-card { background: #1a1a1a; border-radius: 12px; overflow: hidden; cursor: pointer; transition: transform 0.2s, background 0.2s; border: 1px solid #2a2a2a; }
-        .video-card:hover { transform: scale(1.02); background: #222; border-color: #ff0000; }
-        .video-card:active { transform: scale(0.97); }
+  <meta charset="UTF-8" />
+  <title>Видео-плеер с таймкодами</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --bg-soft: #181818;
+      --bg-softer: #202020;
+      --accent: #ff0000;
+      --accent-soft: #ff4d4d;
+      --text: #ffffff;
+      --text-soft: #aaaaaa;
+      --border-soft: #333333;
+    }
 
-        .video-card .thumbnail { width: 100%; aspect-ratio: 16/9; background: #111; display: flex; align-items: center; justify-content: center; font-size: 48px; color: #444; overflow: hidden; position: relative; }
-        .video-card .thumbnail img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-        .video-card .info { padding: 12px 14px; }
-        .video-card .title { font-size: 15px; font-weight: 500; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .video-card .meta { font-size: 13px; color: #aaa; }
-        .video-card .timeline-badge { display: inline-block; background: #2a2a2a; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-top: 6px; color: #ff0000; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
 
-        #loadingMessage { color: #aaa; text-align: center; padding: 40px; font-size: 18px; }
+    .app {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr);
+      gap: 16px;
+    }
 
-        #playerScreen { display: none; }
-        .back-btn { background: none; border: none; color: #fff; font-size: 16px; cursor: pointer; padding: 8px 0 16px 0; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
-        .back-btn:hover { color: #ff0000; }
-        .back-btn svg { width: 24px; height: 24px; fill: currentColor; }
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+    }
 
-        .player-container { position: relative; width: 100%; background: #000; border-radius: 12px; overflow: hidden; }
-        .video-wrapper { position: relative; width: 100%; padding-top: 56.25%; background: #000; cursor: default; -webkit-tap-highlight-color: transparent; }
-        .video-wrapper video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; background: #000; object-fit: cover; pointer-events: none; -webkit-user-select: none; user-select: none; }
-        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0); transition: background 0.3s; pointer-events: none; z-index: 2; }
-        .center-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 68px; height: 68px; background: rgba(255,255,255,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 5; pointer-events: auto; opacity: 0; transition: opacity 0.3s; backdrop-filter: blur(4px); border: 2px solid rgba(255,255,255,0.2); cursor: pointer; -webkit-tap-highlight-color: transparent; outline: none; }
-        .center-play.show { opacity: 1; }
-        .center-play svg { width: 36px; height: 36px; fill: #fff; margin-left: 4px; pointer-events: none; }
-        .controls { position: absolute; bottom: 0; left: 0; width: 100%; padding: 20px 16px 14px 16px; background: linear-gradient(transparent, rgba(0,0,0,0.85)); z-index: 10; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
-        .controls.show { opacity: 1; pointer-events: auto; }
-        .progress-bar { width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; cursor: pointer; position: relative; margin-bottom: 10px; transition: height 0.2s; -webkit-tap-highlight-color: transparent; touch-action: none; }
-        .progress-bar:hover { height: 6px; }
-        .progress-fill { height: 100%; background: #ff0000; border-radius: 2px; width: 0%; position: relative; transition: width 0.1s; }
-        .progress-fill::after { content: ''; position: absolute; right: -6px; top: -4px; width: 12px; height: 12px; background: #ff0000; border-radius: 50%; opacity: 0; transition: opacity 0.2s; }
-        .progress-bar:hover .progress-fill::after { opacity: 1; }
-        .preview-tooltip { display: none; position: absolute; bottom: 25px; left: 0; width: 160px; height: 90px; background: #000; border: 2px solid rgba(255,255,255,0.8); border-radius: 4px; overflow: hidden; z-index: 15; transform: translateX(-50%); pointer-events: none; }
-        .preview-tooltip.show { display: block; }
-        .preview-tooltip canvas { width: 100%; height: 100%; object-fit: cover; background: #000; display: block; }
-        .preview-tooltip .preview-time { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 3px; font-family: monospace; }
-        .controls-bottom { display: flex; align-items: center; gap: 10px; }
-        .controls-bottom button { background: none; border: none; color: #fff; cursor: pointer; padding: 4px; transition: 0.2s; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; outline: none; user-select: none; min-width: 44px; min-height: 44px; }
-        .controls-bottom button:focus { outline: none; }
-        .controls-bottom button:hover { color: #ff0000; }
-        .controls-bottom button:active { color: #ff0000; transform: scale(0.92); }
-        .controls-bottom button svg { width: 24px; height: 24px; fill: currentColor; pointer-events: none; }
-        .time-display { color: #fff; font-size: 13px; font-family: monospace; margin: 0 4px; min-width: 70px; user-select: none; }
-        .spacer { flex: 1; }
-        .timeline-btn { background: rgba(255,255,255,0.08) !important; padding: 3px 10px !important; border-radius: 4px !important; font-size: 13px; font-weight: 600; color: #fff !important; text-align: center; -webkit-tap-highlight-color: transparent !important; outline: none !important; user-select: none !important; }
-        .timeline-btn:hover { background: rgba(255,255,255,0.2) !important; color: #ff0000 !important; }
-        .timeline-btn:focus { outline: none !important; }
-        .timeline-btn:active { transform: scale(0.92); }
-        .timeline-dropdown { position: relative; display: inline-block; }
-        .timeline-dropdown .dropdown-content { display: none; position: absolute; bottom: 110%; right: 0; background: rgba(30,30,30,0.95); border-radius: 8px; min-width: 160px; box-shadow: 0 4px 30px rgba(0,0,0,0.8); overflow: hidden; backdrop-filter: blur(10px); padding: 4px 0; }
-        .timeline-dropdown .dropdown-content.show { display: block; }
-        .timeline-dropdown .dropdown-content button { display: block; width: 100%; padding: 8px 16px; background: transparent; border: none; color: #ddd; font-size: 13px; cursor: pointer; text-align: left; transition: 0.15s; -webkit-tap-highlight-color: transparent; outline: none; min-height: 40px; }
-        .timeline-dropdown .dropdown-content button:focus { outline: none; }
-        .timeline-dropdown .dropdown-content button:hover { background: #ff0000; color: #fff; }
-        .timeline-dropdown .dropdown-content button .time-label { color: #ff0000; font-weight: bold; margin-right: 8px; }
-        .video-info { margin-top: 16px; }
-        .video-title { font-size: 20px; font-weight: 600; line-height: 1.4; }
-        .video-meta { color: #aaa; font-size: 14px; margin-top: 6px; }
-        .video-description { color: #aaa; font-size: 14px; margin-top: 10px; line-height: 1.6; padding-bottom: 10px; border-bottom: 1px solid #2a2a2a; }
-        .player-container:-webkit-full-screen { width: 100vw !important; height: 100vh !important; max-width: 100% !important; border-radius: 0 !important; background: #000 !important; }
-        .player-container:-moz-full-screen { width: 100vw !important; height: 100vh !important; max-width: 100% !important; border-radius: 0 !important; background: #000 !important; }
-        .player-container:fullscreen { width: 100vw !important; height: 100vh !important; max-width: 100% !important; border-radius: 0 !important; background: #000 !important; }
-        .player-container:-webkit-full-screen .video-wrapper { padding-top: 0 !important; height: 100vh !important; }
-        .player-container:-moz-full-screen .video-wrapper { padding-top: 0 !important; height: 100vh !important; }
-        .player-container:fullscreen .video-wrapper { padding-top: 0 !important; height: 100vh !important; }
-        .player-container:-webkit-full-screen .video-wrapper video { object-fit: cover; width: 100vw; height: 100vh; }
-        .player-container:-moz-full-screen .video-wrapper video { object-fit: cover; width: 100vw; height: 100vh; }
-        .player-container:fullscreen .video-wrapper video { object-fit: cover; width: 100vw; height: 100vh; }
-        .player-container:-webkit-full-screen ~ .video-info, .player-container:-moz-full-screen ~ .video-info, .player-container:fullscreen ~ .video-info { display: none !important; }
-        .close-fs { display: none; position: absolute; top: 16px; right: 16px; z-index: 20; background: rgba(0,0,0,0.6); border: none; color: #fff; font-size: 28px; cursor: pointer; padding: 8px 14px; border-radius: 8px; transition: 0.2s; -webkit-tap-highlight-color: transparent; outline: none; }
-        .close-fs:focus { outline: none; }
-        .close-fs:hover { background: rgba(255,0,0,0.6); }
-        .close-fs:active { transform: scale(0.92); }
-        .player-container:-webkit-full-screen .close-fs, .player-container:-moz-full-screen .close-fs, .player-container:fullscreen .close-fs { display: block; }
-        @media (max-width: 700px) { body { padding: 16px 10px; } .video-title { font-size: 16px; } .video-description { font-size: 13px; } .controls-bottom button svg { width: 20px; height: 20px; } .time-display { font-size: 12px; min-width: 60px; } .center-play { width: 52px; height: 52px; } .center-play svg { width: 28px; height: 28px; } .preview-tooltip { width: 120px; height: 68px; } .timeline-dropdown .dropdown-content { min-width: 140px; } .controls-bottom button { min-width: 38px; min-height: 38px; padding: 2px; } }
-    </style>
+    header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #000000;
+    }
+
+    header h1 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    header span {
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .player-container {
+      background: var(--bg-soft);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .video-wrapper {
+      position: relative;
+      background: #000;
+      aspect-ratio: 16 / 9;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #000;
+    }
+
+    .overlay-center-play {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .overlay-center-play button {
+      pointer-events: auto;
+      border: none;
+      border-radius: 50%;
+      width: 64px;
+      height: 64px;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+    }
+
+    .overlay-center-play button svg {
+      fill: #ffffff;
+    }
+
+    .overlay-center-play button:hover {
+      transform: scale(1.05);
+      background: rgba(0, 0, 0, 0.9);
+    }
+
+    .overlay-center-play.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .controls {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 8px 12px 10px;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+    }
+
+    .controls.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .controls-left,
+    .controls-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control-btn {
+      border: none;
+      background: transparent;
+      color: #ffffff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .control-btn svg {
+      fill: #ffffff;
+    }
+
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .time-label {
+      font-size: 12px;
+      color: var(--text-soft);
+      min-width: 80px;
+    }
+
+    .time-label strong {
+      color: var(--text);
+    }
+
+    .progress-wrapper {
+      position: relative;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 999px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      background: var(--accent);
+      border-radius: 999px;
+    }
+
+    .progress-hover {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 999px;
+      pointer-events: none;
+    }
+
+    .progress-thumb {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
+    }
+
+    .preview-tooltip {
+      position: absolute;
+      bottom: 18px;
+      transform: translateX(-50%);
+      padding: 4px 6px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.9);
+      color: #ffffff;
+      font-size: 11px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .preview-tooltip.visible {
+      opacity: 1;
+    }
+
+    .preview-thumbnail {
+      position: absolute;
+      bottom: 30px;
+      transform: translateX(-50%);
+      width: 160px;
+      height: 90px;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #000;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .preview-thumbnail.visible {
+      opacity: 1;
+    }
+
+    .preview-thumbnail canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .player-meta {
+      padding: 10px 12px;
+      border-top: 1px solid var(--border-soft);
+      background: var(--bg-softer);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .player-title {
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .player-description {
+      font-size: 13px;
+      color: var(--text-soft);
+    }
+
+    .timemarks-toggle {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      color: var(--text-soft);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--bg-soft);
+      border: 1px solid var(--border-soft);
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+      margin-top: 4px;
+      width: fit-content;
+    }
+
+    .timemarks-toggle:hover {
+      background: var(--bg-softer);
+      border-color: var(--accent-soft);
+      transform: translateY(-1px);
+    }
+
+    .timemarks-toggle span.count {
+      color: var(--accent-soft);
+      font-weight: 500;
+    }
+
+    .timemarks-dropdown {
+      position: absolute;
+      top: 110%;
+      left: 0;
+      min-width: 220px;
+      background: #111111;
+      border-radius: 8px;
+      border: 1px solid var(--border-soft);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      padding: 6px 0;
+      z-index: 20;
+      display: none;
+    }
+
+    .timemarks-dropdown.visible {
+      display: block;
+    }
+
+    .timemark-item {
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .timemark-item:hover {
+      background: #222222;
+    }
+
+    .timemark-time {
+      color: var(--accent-soft);
+      font-weight: 500;
+      min-width: 60px;
+    }
+
+    .timemark-label {
+      color: var(--text);
+      flex: 1;
+    }
+
+    .timemark-empty {
+      padding: 6px 10px;
+      font-size: 13px;
+      color: var(--text-soft);
+    }
+
+    .timemark-add {
+      margin-top: 8px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .timemark-add input {
+      flex: 1;
+      padding: 6px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border-soft);
+      background: #111111;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+    }
+
+    .timemark-add input::placeholder {
+      color: #555555;
+    }
+
+    .timemark-add button {
+      border-radius: 999px;
+      border: none;
+      padding: 6px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      background: var(--accent);
+      color: #ffffff;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .timemark-add button:hover {
+      background: var(--accent-soft);
+      transform: translateY(-1px);
+    }
+
+    .video-list-container {
+      background: var(--bg-soft);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .video-list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .video-list-header h2 {
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .video-list-header span {
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 600px) {
+      .video-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      }
+    }
+
+    .video-card {
+      background: var(--bg-softer);
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid transparent;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+      position: relative;
+    }
+
+    .video-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+      border-color: var(--border-soft);
+      background: #1f1f1f;
+    }
+
+    .video-card.active {
+      border-color: var(--accent-soft);
+      box-shadow: 0 0 0 1px rgba(255, 0, 0, 0.4);
+    }
+
+    .video-card-thumb {
+      position: relative;
+      background: #000;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+    }
+
+    .video-card-thumb canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .video-card-thumb .duration-badge {
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #ffffff;
+      font-size: 11px;
+    }
+
+    .video-card-body {
+      padding: 8px 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .video-card-title {
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.3;
+    }
+
+    .video-card-meta {
+      font-size: 11px;
+      color: var(--text-soft);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    .video-card-meta span.timemark-count {
+      color: var(--accent-soft);
+      font-weight: 500;
+    }
+
+    .video-card-meta span.meta {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .video-card-hover {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.06), transparent);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+
+    .video-card:hover .video-card-hover {
+      opacity: 1;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--text-soft);
+      margin-top: 4px;
+    }
+
+    .hint kbd {
+      background: #222222;
+      border-radius: 4px;
+      padding: 2px 4px;
+      font-size: 10px;
+      border: 1px solid #333333;
+    }
+
+    /* Touch helpers */
+    .touch-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div id="mainScreen">
-            <h1>🎬 Мои видео</h1>
-            <div id="loadingMessage">⏳ Загрузка видео...</div>
-            <div class="video-grid" id="videoGrid"></div>
+<header>
+  <h1>Локальный видео-плеер</h1>
+  <span>Пробел — пауза, ← → — перемотка, F — полноэкранный режим</span>
+</header>
+
+<div class="app">
+  <section class="player-container">
+    <div class="video-wrapper" id="videoWrapper">
+      <video id="video" preload="metadata"></video>
+
+      <div class="overlay-center-play" id="centerPlayOverlay">
+        <button id="centerPlayBtn" aria-label="Воспроизвести">
+          <svg width="26" height="26" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z"></path>
+          </svg>
+        </button>
+      </div>
+
+      <div class="controls" id="controls">
+        <div class="progress-wrapper" id="progressWrapper">
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+            <div class="progress-hover" id="progressHover"></div>
+            <div class="progress-thumb" id="progressThumb"></div>
+          </div>
+          <div class="preview-tooltip" id="previewTooltip"></div>
+          <div class="preview-thumbnail" id="previewThumbnail">
+            <canvas id="previewCanvas"></canvas>
+          </div>
         </div>
 
-        <div id="playerScreen" style="display:none;">
-            <button class="back-btn" id="backBtn">
-                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-                Назад
+        <div class="controls-row">
+          <div class="controls-left">
+            <button class="control-btn" id="playPauseBtn" aria-label="Пуск/пауза">
+              <svg id="playIcon" width="20" height="20" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"></path>
+              </svg>
+              <svg id="pauseIcon" width="20" height="20" viewBox="0 0 24 24" style="display:none;">
+                <path d="M6 5h4v14H6zm8 0h4v14h-4z"></path>
+              </svg>
             </button>
-            <div class="player-container" id="playerContainer">
-                <div class="video-wrapper" id="videoWrapper">
-                    <video id="myVideo" preload="metadata" playsinline></video>
-                    <div class="preview-tooltip" id="previewTooltip">
-                        <canvas id="previewCanvas"></canvas>
-                        <div class="preview-time" id="previewTime">00:00</div>
-                    </div>
-                    <div class="overlay" id="overlay"></div>
-                    <div class="center-play" id="centerPlay">
-                        <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
-                    </div>
-                    <div class="controls" id="controls">
-                        <div class="progress-bar" id="progressBar">
-                            <div class="progress-fill" id="progressFill"></div>
-                        </div>
-                        <div class="controls-bottom">
-                            <button id="playPauseBtn">
-                                <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" id="playIcon"/></svg>
-                            </button>
-                            <span class="time-display" id="timeDisplay">00:00 / 00:00</span>
-                            <div class="spacer"></div>
-                            <div class="timeline-dropdown">
-                                <button class="timeline-btn" id="timelineBtn">⏱ Таймкод</button>
-                                <div class="dropdown-content" id="timelineMenu"></div>
-                            </div>
-                            <button id="fullscreenBtn">
-                                <svg viewBox="0 0 24 24" id="fsIcon">
-                                    <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <button class="close-fs" id="closeFsBtn">✕</button>
-            </div>
-            <div class="video-info" id="videoInfo">
-                <div class="video-title" id="videoTitle"></div>
-                <div class="video-meta" id="videoMeta"></div>
-                <div class="video-description" id="videoDescription"></div>
-            </div>
+            <span class="time-label">
+              <strong id="currentTimeLabel">0:00</strong> / <span id="durationLabel">0:00</span>
+            </span>
+          </div>
+          <div class="controls-right">
+            <button class="control-btn" id="fullscreenBtn" aria-label="Полноэкранный режим">
+              <svg width="18" height="18" viewBox="0 0 24 24">
+                <path d="M7 14H5v5h5v-2H7zm0-4h2V5H5v5h2zm10 4h-2v3h-3v2h5zm-2-4h2V5h-5v2h3z"></path>
+              </svg>
+            </button>
+          </div>
         </div>
+      </div>
+
+      <div class="touch-overlay" id="touchOverlay"></div>
     </div>
 
-    <script>
-        // === КОНФИГУРАЦИЯ FIREBASE ===
-        const firebaseConfig = {
-            apiKey: "AIzaSyCaNedHxv1aybxGcUR-mU9TkMuLf2toQG4",
-            authDomain: "dnevnik-d4846.firebaseapp.com",
-            databaseURL: "https://dnevnik-d4846-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "dnevnik-d4846",
-            storageBucket: "dnevnik-d4846.firebasestorage.app",
-            messagingSenderId: "879922990092",
-            appId: "1:879922990092:web:78262b08cd5437dbfc3229"
-        };
+    <div class="player-meta">
+      <div class="player-title" id="playerTitle">Выберите видео</div>
+      <div class="player-description" id="playerDescription"></div>
 
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+      <div class="timemarks-toggle" id="timemarksToggle">
+        <span>Таймкоды</span>
+        <span class="count" id="timemarksCount">0</span>
+        <svg width="12" height="12" viewBox="0 0 24 24">
+          <path fill="#aaaaaa" d="M7 10l5 5 5-5z"></path>
+        </svg>
 
-        // === ЭЛЕМЕНТЫ ===
-        const mainScreen = document.getElementById('mainScreen');
-        const playerScreen = document.getElementById('playerScreen');
-        const videoGrid = document.getElementById('videoGrid');
-        const loadingMessage = document.getElementById('loadingMessage');
-        const backBtn = document.getElementById('backBtn');
-        const playerContainer = document.getElementById('playerContainer');
-        const video = document.getElementById('myVideo');
-        const wrapper = document.getElementById('videoWrapper');
-        const controls = document.getElementById('controls');
-        const centerPlay = document.getElementById('centerPlay');
-        const playPauseBtn = document.getElementById('playPauseBtn');
-        const playIcon = document.getElementById('playIcon');
-        const timeDisplay = document.getElementById('timeDisplay');
-        const progressBar = document.getElementById('progressBar');
-        const progressFill = document.getElementById('progressFill');
-        const timelineBtn = document.getElementById('timelineBtn');
-        const timelineMenu = document.getElementById('timelineMenu');
-        const fullscreenBtn = document.getElementById('fullscreenBtn');
-        const closeFsBtn = document.getElementById('closeFsBtn');
-        const fsIcon = document.getElementById('fsIcon');
-        const videoTitle = document.getElementById('videoTitle');
-        const videoMeta = document.getElementById('videoMeta');
-        const videoDescription = document.getElementById('videoDescription');
-        const previewTooltip = document.getElementById('previewTooltip');
-        const previewCanvas = document.getElementById('previewCanvas');
-        const previewTime = document.getElementById('previewTime');
-        const ctx = previewCanvas.getContext('2d');
+        <div class="timemarks-dropdown" id="timemarksDropdown">
+          <div id="timemarksList"></div>
+          <div class="timemark-add">
+            <input type="text" id="timemarkInput" placeholder="Метка для текущего времени" />
+            <button id="timemarkAddBtn">Добавить</button>
+          </div>
+        </div>
+      </div>
 
-        let currentVideo = null;
-        let controlsTimeout = null;
-        let isControlsVisible = false;
-        let isDragging = false;
-        let wasPlaying = false;
-        let previewFrameTimeout = null;
+      <div class="hint">
+        <span>Управление: <kbd>Space</kbd> — пауза, <kbd>←</kbd>/<kbd>→</kbd> — ±5 сек, <kbd>F</kbd> — полноэкранный режим.</span>
+      </div>
+    </div>
+  </section>
 
-        previewCanvas.width = 160;
-        previewCanvas.height = 90;
+  <section class="video-list-container">
+    <div class="video-list-header">
+      <h2>Видео</h2>
+      <span id="videoCountLabel"></span>
+    </div>
+    <div class="video-grid" id="videoGrid"></div>
+  </section>
+</div>
 
-        // === ПРОСТОЙ СПОСОБ ПРЕВЬЮ - ИСПОЛЬЗУЕМ ВИДЕО КАК ИСТОЧНИК ===
-        function createPreviewFromVideo(videoSrc, timeSeconds, callback) {
-            // Создаём скрытое видео
-            const tempVideo = document.createElement('video');
-            tempVideo.src = videoSrc;
-            tempVideo.crossOrigin = 'anonymous';
-            tempVideo.preload = 'metadata';
-            tempVideo.style.display = 'none';
-            document.body.appendChild(tempVideo);
+<script>
+  // -----------------------------
+  // Данные о видео
+  // -----------------------------
+  const videosData = [
+    {
+      id: 1,
+      title: "Пример: Город ночью",
+      src: "videos/city-night.mp4",
+      description: "Ночная прогулка по городу с огнями и движением.",
+      meta: "1080p • 60fps • 2:34",
+      timemarks: [
+        { time: 10, label: "Начало прогулки" },
+        { time: 45, label: "Мост и огни" },
+        { time: 110, label: "Панорама города" }
+      ],
+      previewTime: 30
+    },
+    {
+      id: 2,
+      title: "Пример: Природа и горы",
+      src: "videos/mountains.mp4",
+      description: "Красивые виды гор и лесов.",
+      meta: "4K • 30fps • 3:12",
+      timemarks: [
+        { time: 5, label: "Первый вид на горы" },
+        { time: 60, label: "Лесная тропа" },
+        { time: 150, label: "Закат над вершинами" }
+      ],
+      previewTime: 20
+    },
+    {
+      id: 3,
+      title: "Пример: Морской берег",
+      src: "videos/beach.mp4",
+      description: "Волны, песок и спокойная атмосфера.",
+      meta: "720p • 30fps • 1:58",
+      timemarks: [
+        { time: 8, label: "Первые волны" },
+        { time: 40, label: "Крупный план воды" },
+        { time: 90, label: "Закат на берегу" }
+      ],
+      previewTime: 15
+    },
+    {
+      id: 4,
+      title: "Пример: Таймлапс города",
+      src: "videos/city-timelapse.mp4",
+      description: "Быстрый таймлапс оживленного города.",
+      meta: "1080p • 30fps • 1:20",
+      timemarks: [
+        { time: 3, label: "Старт таймлапса" },
+        { time: 30, label: "Плотный трафик" },
+        { time: 70, label: "Ночной финал" }
+      ],
+      previewTime: 10
+    }
+  ];
 
-            let isReady = false;
+  // -----------------------------
+  // Элементы DOM
+  // -----------------------------
+  const videoEl = document.getElementById("video");
+  const videoWrapper = document.getElementById("videoWrapper");
+  const centerPlayOverlay = document.getElementById("centerPlayOverlay");
+  const centerPlayBtn = document.getElementById("centerPlayBtn");
+  const controlsEl = document.getElementById("controls");
+  const playPauseBtn = document.getElementById("playPauseBtn");
+  const playIcon = document.getElementById("playIcon");
+  const pauseIcon = document.getElementById("pauseIcon");
+  const fullscreenBtn = document.getElementById("fullscreenBtn");
+  const currentTimeLabel = document.getElementById("currentTimeLabel");
+  const durationLabel = document.getElementById("durationLabel");
+  const progressWrapper = document.getElementById("progressWrapper");
+  const progressBar = document.getElementById("progressBar");
+  const progressFill = document.getElementById("progressFill");
+  const progressHover = document.getElementById("progressHover");
+  const progressThumb = document.getElementById("progressThumb");
+  const previewTooltip = document.getElementById("previewTooltip");
+  const previewThumbnail = document.getElementById("previewThumbnail");
+  const previewCanvas = document.getElementById("previewCanvas");
+  const playerTitle = document.getElementById("playerTitle");
+  const playerDescription = document.getElementById("playerDescription");
+  const timemarksToggle = document.getElementById("timemarksToggle");
+  const timemarksDropdown = document.getElementById("timemarksDropdown");
+  const timemarksList = document.getElementById("timemarksList");
+  const timemarksCount = document.getElementById("timemarksCount");
+  const timemarkInput = document.getElementById("timemarkInput");
+  const timemarkAddBtn = document.getElementById("timemarkAddBtn");
+  const videoGrid = document.getElementById("videoGrid");
+  const videoCountLabel = document.getElementById("videoCountLabel");
+  const touchOverlay = document.getElementById("touchOverlay");
 
-            const capture = () => {
-                try {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = 320;
-                    canvas.height = 180;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                    callback(dataUrl);
-                } catch (e) {
-                    callback(null);
-                }
-                // Очищаем
-                tempVideo.pause();
-                tempVideo.src = '';
-                tempVideo.load();
-                document.body.removeChild(tempVideo);
-            };
+  let currentVideo = null;
+  let controlsHideTimeout = null;
+  let isMouseOverControls = false;
+  let isScrubbing = false;
+  let lastPointerX = 0;
 
-            const onReady = () => {
-                if (isReady) return;
-                isReady = true;
-                const safeTime = Math.min(timeSeconds, tempVideo.duration - 0.5);
-                if (safeTime > 0 && tempVideo.readyState >= 2) {
-                    tempVideo.currentTime = safeTime;
-                    tempVideo.addEventListener('seeked', () => {
-                        capture();
-                    }, { once: true });
-                    // Если seeked не сработал через 1 секунду - всё равно пробуем захватить
-                    setTimeout(() => {
-                        if (!isReady) return;
-                        capture();
-                    }, 1000);
-                } else {
-                    capture();
-                }
-            };
+  // -----------------------------
+  // Вспомогательные функции
+  // -----------------------------
+  function formatTime(seconds) {
+    if (isNaN(seconds)) return "0:00";
+    const s = Math.floor(seconds);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${r.toString().padStart(2, "0")}`;
+  }
 
-            tempVideo.addEventListener('loadeddata', onReady);
-            tempVideo.addEventListener('loadedmetadata', onReady);
-            
-            // Если видео не загрузилось через 5 секунд
-            setTimeout(() => {
-                if (!isReady) {
-                    callback(null);
-                    document.body.removeChild(tempVideo);
-                }
-            }, 5000);
+  function showControls() {
+    controlsEl.classList.remove("hidden");
+    centerPlayOverlay.classList.remove("hidden");
+    if (controlsHideTimeout) {
+      clearTimeout(controlsHideTimeout);
+    }
+    controlsHideTimeout = setTimeout(() => {
+      if (!videoEl.paused && !isMouseOverControls && !isScrubbing) {
+        controlsEl.classList.add("hidden");
+        centerPlayOverlay.classList.add("hidden");
+      }
+    }, 2500);
+  }
 
-            tempVideo.load();
-        }
+  function updatePlayPauseUI() {
+    if (videoEl.paused) {
+      playIcon.style.display = "";
+      pauseIcon.style.display = "none";
+      centerPlayOverlay.classList.remove("hidden");
+    } else {
+      playIcon.style.display = "none";
+      pauseIcon.style.display = "";
+      centerPlayOverlay.classList.add("hidden");
+    }
+  }
 
-        // === ЗАГРУЗКА ДАННЫХ ИЗ FIREBASE ===
-        function loadVideosFromFirebase() {
-            const videosRef = database.ref('videos');
-            videosRef.on('value', (snapshot) => {
-                const data = snapshot.val();
-                loadingMessage.style.display = 'none';
-                
-                if (!data) {
-                    loadingMessage.textContent = '📭 Нет видео. Добавьте их в Firebase.';
-                    loadingMessage.style.display = 'block';
-                    return;
-                }
+  function setVideo(videoData) {
+    currentVideo = videoData;
+    videoEl.src = videoData.src;
+    videoEl.load();
+    playerTitle.textContent = videoData.title;
+    playerDescription.textContent = videoData.description;
+    timemarksCount.textContent = videoData.timemarks.length;
+    renderTimemarks();
+    updatePlayPauseUI();
+    progressFill.style.width = "0%";
+    progressThumb.style.left = "0%";
+    currentTimeLabel.textContent = "0:00";
+    durationLabel.textContent = "0:00";
+    hidePreview();
+  }
 
-                const videoData = Object.values(data);
-                renderVideoList(videoData);
-            }, (error) => {
-                console.error('Ошибка загрузки из Firebase:', error);
-                loadingMessage.innerHTML = '❌ Ошибка загрузки данных. Проверьте настройки Firebase.';
-            });
-        }
-
-        // === ОТОБРАЖЕНИЕ СПИСКА ВИДЕО ===
-        function renderVideoList(videoData) {
-            videoGrid.innerHTML = '';
-            videoData.sort((a, b) => a.id - b.id);
-
-            videoData.forEach(videoItem => {
-                const card = document.createElement('div');
-                card.className = 'video-card';
-                const timemarksCount = videoItem.timemarks ? Object.keys(videoItem.timemarks).length : 0;
-                
-                // Контейнер для превью
-                const thumbnailDiv = document.createElement('div');
-                thumbnailDiv.className = 'thumbnail';
-                thumbnailDiv.textContent = '🎬';
-                card.appendChild(thumbnailDiv);
-
-                // Информация
-                const infoDiv = document.createElement('div');
-                infoDiv.className = 'info';
-                infoDiv.innerHTML = `
-                    <div class="title">${videoItem.title}</div>
-                    <div class="meta">${timemarksCount > 0 ? timemarksCount + ' таймкодов' : 'Без таймкодов'}</div>
-                    ${timemarksCount > 0 ? `<div class="timeline-badge">⏱ ${timemarksCount} меток</div>` : ''}
-                `;
-                card.appendChild(infoDiv);
-
-                // Генерируем превью
-                let previewTimeSeconds = 5;
-                if (videoItem.previewTime !== undefined) {
-                    previewTimeSeconds = videoItem.previewTime;
-                } else if (videoItem.timemarks) {
-                    const firstMark = Object.values(videoItem.timemarks)[0];
-                    if (firstMark) previewTimeSeconds = firstMark.time;
-                }
-
-                createPreviewFromVideo(videoItem.src, previewTimeSeconds, (dataUrl) => {
-                    if (dataUrl) {
-                        thumbnailDiv.innerHTML = '';
-                        const img = document.createElement('img');
-                        img.src = dataUrl;
-                        img.alt = 'Превью';
-                        img.style.width = '100%';
-                        img.style.height = '100%';
-                        img.style.objectFit = 'cover';
-                        thumbnailDiv.appendChild(img);
-                    }
-                });
-
-                card.addEventListener('click', () => openPlayer(videoItem));
-                videoGrid.appendChild(card);
-            });
-        }
-
-        // === ОСТАЛЬНЫЕ ФУНКЦИИ ===
-        function openPlayer(videoData) {
-            currentVideo = videoData;
-            mainScreen.style.display = 'none';
-            playerScreen.style.display = 'block';
-
-            video.src = videoData.src;
-            video.load();
-
-            timelineMenu.innerHTML = '';
-            if (videoData.timemarks) {
-                const timemarksArray = Object.values(videoData.timemarks);
-                timemarksArray.forEach(tm => {
-                    const btn = document.createElement('button');
-                    const minutes = Math.floor(tm.time / 60);
-                    const seconds = Math.floor(tm.time % 60);
-                    const timeStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
-                    btn.innerHTML = `<span class="time-label">${timeStr}</span> ${tm.label}`;
-                    btn.dataset.time = tm.time;
-                    btn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        video.currentTime = tm.time;
-                        progressFill.style.width = (tm.time / video.duration) * 100 + '%';
-                        showControls();
-                        timelineMenu.classList.remove('show');
-                    });
-                    timelineMenu.appendChild(btn);
-                });
-            }
-
-            videoTitle.textContent = videoData.title;
-            videoMeta.textContent = videoData.meta || '© Видео';
-            videoDescription.textContent = videoData.description || videoData.title;
-
-            setTimeout(showControls, 300);
-        }
-
-        function goToMain() {
-            video.pause();
-            playerScreen.style.display = 'none';
-            mainScreen.style.display = 'block';
-            currentVideo = null;
-        }
-
-        function showControls() {
-            controls.classList.add('show');
-            if (video.paused) centerPlay.classList.add('show');
-            isControlsVisible = true;
-            clearTimeout(controlsTimeout);
-            if (!video.paused) {
-                controlsTimeout = setTimeout(() => {
-                    controls.classList.remove('show');
-                    isControlsVisible = false;
-                }, 3000);
-            }
-        }
-
-        function hideControls() {
-            controls.classList.remove('show');
-            centerPlay.classList.remove('show');
-            isControlsVisible = false;
-            clearTimeout(controlsTimeout);
-        }
-
-        function toggleControls() {
-            if (isControlsVisible) hideControls();
-            else showControls();
-        }
-
-        function togglePlay() {
-            if (video.paused) {
-                video.play();
-                playIcon.setAttribute('d', 'M6,4h4v16H6V4z M14,4h4v16h-4V4z');
-                centerPlay.classList.remove('show');
-                showControls();
-            } else {
-                video.pause();
-                playIcon.setAttribute('d', 'M5,3 L19,12 L5,21 Z');
-                centerPlay.classList.add('show');
-                showControls();
-            }
-        }
-
-        function formatTime(seconds) {
-            if (isNaN(seconds) || !isFinite(seconds)) return '00:00';
-            const m = Math.floor(seconds / 60);
-            const s = Math.floor(seconds % 60);
-            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-        }
-
-        // === ПРЕВЬЮ ПРИ НАВЕДЕНИИ ===
-        function capturePreviewFrame(time) {
-            return new Promise((resolve) => {
-                const wasPaused = video.paused;
-                let seekTime = time;
-                if (video.buffered.length > 0) {
-                    let found = false;
-                    for (let i = 0; i < video.buffered.length; i++) {
-                        if (time >= video.buffered.start(i) && time <= video.buffered.end(i)) {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found) {
-                        const lastBuffer = video.buffered.end(video.buffered.length - 1);
-                        seekTime = Math.min(time, lastBuffer - 0.1);
-                    }
-                }
-                const captureFrame = () => {
-                    try {
-                        ctx.drawImage(video, 0, 0, previewCanvas.width, previewCanvas.height);
-                        resolve();
-                    } catch (e) { resolve(); }
-                };
-                if (Math.abs(video.currentTime - seekTime) < 0.05) {
-                    captureFrame();
-                    return;
-                }
-                const onSeeked = () => {
-                    video.removeEventListener('seeked', onSeeked);
-                    captureFrame();
-                    if (!wasPaused) video.play().catch(() => {});
-                };
-                video.addEventListener('seeked', onSeeked);
-                video.currentTime = seekTime;
-            });
-        }
-
-        function updateProgress(e) {
-            const rect = progressBar.getBoundingClientRect();
-            let x = (e.clientX || e.touches?.[0]?.clientX || 0) - rect.left;
-            x = Math.max(0, Math.min(x, rect.width));
-            const percent = x / rect.width;
-            const time = percent * video.duration;
-            if (!isNaN(time) && video.duration > 0) {
-                progressFill.style.width = percent * 100 + '%';
-                previewTime.textContent = formatTime(time);
-                const tooltipX = Math.max(10, Math.min(x, rect.width - 80));
-                previewTooltip.style.left = tooltipX + 'px';
-                clearTimeout(previewFrameTimeout);
-                previewFrameTimeout = setTimeout(() => capturePreviewFrame(time), 50);
-            }
-        }
-
-        function startDrag(e) {
-            isDragging = true;
-            wasPlaying = !video.paused;
-            video.pause();
-            previewTooltip.classList.add('show');
-            updateProgress(e);
-        }
-
-        function endDrag(e) {
-            if (isDragging) {
-                isDragging = false;
-                previewTooltip.classList.remove('show');
-                clearTimeout(previewFrameTimeout);
-                const rect = progressBar.getBoundingClientRect();
-                let x = (e.clientX || e.changedTouches?.[0]?.clientX || 0) - rect.left;
-                x = Math.max(0, Math.min(x, rect.width));
-                const percent = x / rect.width;
-                const time = percent * video.duration;
-                if (!isNaN(time) && video.duration > 0) {
-                    video.currentTime = time;
-                    progressFill.style.width = percent * 100 + '%';
-                }
-                if (wasPlaying) {
-                    video.play().catch(() => {});
-                    centerPlay.classList.remove('show');
-                } else {
-                    centerPlay.classList.add('show');
-                }
-                showControls();
-            }
-        }
-
-        // === FULLSCREEN ===
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                if (playerContainer.requestFullscreen) playerContainer.requestFullscreen();
-                else if (playerContainer.webkitRequestFullscreen) playerContainer.webkitRequestFullscreen();
-                else if (playerContainer.msRequestFullscreen) playerContainer.msRequestFullscreen();
-                try { screen.orientation?.lock('landscape'); } catch(e) {}
-                fsIcon.setAttribute('d', 'M5,16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6,11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z');
-            } else {
-                if (document.exitFullscreen) document.exitFullscreen();
-                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-                else if (document.msExitFullscreen) document.msExitFullscreen();
-                try { screen.orientation?.unlock(); } catch(e) {}
-                fsIcon.setAttribute('d', 'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z');
-            }
-            showControls();
-        }
-
-        // === СОБЫТИЯ ===
-        backBtn.addEventListener('click', goToMain);
-
-        progressBar.addEventListener('mousedown', startDrag);
-        document.addEventListener('mousemove', (e) => { if (isDragging) { e.preventDefault(); updateProgress(e); } });
-        document.addEventListener('mouseup', endDrag);
-        progressBar.addEventListener('touchstart', (e) => { e.preventDefault(); startDrag(e); }, { passive: false });
-        document.addEventListener('touchmove', (e) => { if (isDragging) { e.preventDefault(); updateProgress(e); } }, { passive: false });
-        document.addEventListener('touchend', endDrag);
-
-        wrapper.addEventListener('click', (e) => {
-            if (e.target.closest('button') || e.target.closest('.center-play') || 
-                e.target.closest('.timeline-dropdown') || e.target.closest('.progress-bar')) return;
-            toggleControls();
+  function renderTimemarks() {
+    timemarksList.innerHTML = "";
+    if (!currentVideo || currentVideo.timemarks.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "timemark-empty";
+      empty.textContent = "Таймкоды пока не добавлены.";
+      timemarksList.appendChild(empty);
+      return;
+    }
+    currentVideo.timemarks
+      .slice()
+      .sort((a, b) => a.time - b.time)
+      .forEach((tm) => {
+        const item = document.createElement("div");
+        item.className = "timemark-item";
+        const timeEl = document.createElement("span");
+        timeEl.className = "timemark-time";
+        timeEl.textContent = formatTime(tm.time);
+        const labelEl = document.createElement("span");
+        labelEl.className = "timemark-label";
+        labelEl.textContent = tm.label;
+        item.appendChild(timeEl);
+        item.appendChild(labelEl);
+        item.addEventListener("click", () => {
+          videoEl.currentTime = tm.time;
+          videoEl.play();
+          updatePlayPauseUI();
+          showControls();
         });
+        timemarksList.appendChild(item);
+      });
+  }
 
-        wrapper.addEventListener('mouseenter', showControls);
-        wrapper.addEventListener('mouseleave', () => {
-            if (!video.paused && !isDragging) {
-                clearTimeout(controlsTimeout);
-                controlsTimeout = setTimeout(() => { if (!video.paused && !isDragging) hideControls(); }, 2000);
-            }
-        });
+  function toggleTimemarksDropdown() {
+    timemarksDropdown.classList.toggle("visible");
+  }
 
-        playPauseBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePlay(); showControls(); });
-        centerPlay.addEventListener('click', (e) => { e.stopPropagation(); togglePlay(); showControls(); });
+  function hideTimemarksDropdown() {
+    timemarksDropdown.classList.remove("visible");
+  }
 
-        video.addEventListener('ended', () => {
-            playIcon.setAttribute('d', 'M5,3 L19,12 L5,21 Z');
-            centerPlay.classList.add('show');
-            showControls();
-        });
+  function addTimemark(label) {
+    if (!currentVideo) return;
+    const time = videoEl.currentTime || 0;
+    currentVideo.timemarks.push({ time, label: label || `Метка ${formatTime(time)}` });
+    timemarksCount.textContent = currentVideo.timemarks.length;
+    renderTimemarks();
+    timemarkInput.value = "";
+  }
 
-        video.addEventListener('timeupdate', () => {
-            const current = formatTime(video.currentTime);
-            const total = formatTime(video.duration);
-            timeDisplay.textContent = `${current} / ${total}`;
-            if (video.duration > 0 && !isDragging) {
-                progressFill.style.width = (video.currentTime / video.duration) * 100 + '%';
-            }
-        });
+  function updateProgressUI() {
+    const duration = videoEl.duration || 0;
+    const current = videoEl.currentTime || 0;
+    const percent = duration ? (current / duration) * 100 : 0;
+    progressFill.style.width = `${percent}%`;
+    progressThumb.style.left = `${percent}%`;
+    currentTimeLabel.textContent = formatTime(current);
+    durationLabel.textContent = formatTime(duration);
+  }
 
-        timelineBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            timelineMenu.classList.toggle('show');
-        });
+  function seekToPercent(percent) {
+    const duration = videoEl.duration || 0;
+    const newTime = duration * percent;
+    videoEl.currentTime = newTime;
+    updateProgressUI();
+  }
 
-        document.addEventListener('click', () => timelineMenu.classList.remove('show'));
+  function showPreviewAtPercent(percent) {
+    const duration = videoEl.duration || 0;
+    const time = duration * percent;
+    const rect = progressBar.getBoundingClientRect();
+    const x = rect.left + rect.width * percent;
+    previewTooltip.textContent = formatTime(time);
+    previewTooltip.style.left = `${x - rect.left}px`;
+    previewTooltip.classList.add("visible");
 
-        fullscreenBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleFullscreen(); });
-        closeFsBtn.addEventListener('click', () => { if (document.fullscreenElement) toggleFullscreen(); });
+    previewThumbnail.style.left = `${x - rect.left}px`;
+    previewThumbnail.classList.add("visible");
 
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) {
-                fsIcon.setAttribute('d', 'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z');
-            }
-            showControls();
-        });
+    if (!isNaN(duration) && duration > 0) {
+      const originalPaused = videoEl.paused;
+      const originalTime = videoEl.currentTime;
+      const wasMuted = videoEl.muted;
+      videoEl.muted = true;
+      videoEl.currentTime = time;
+      videoEl.pause();
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && document.fullscreenElement) toggleFullscreen();
-            if (e.key === ' ' || e.key === 'k') { e.preventDefault(); togglePlay(); }
-            if (e.key === 'f') toggleFullscreen();
-            if (e.key === 'ArrowRight') { e.preventDefault(); video.currentTime = Math.min(video.currentTime + 5, video.duration); }
-            if (e.key === 'ArrowLeft') { e.preventDefault(); video.currentTime = Math.max(video.currentTime - 5, 0); }
-        });
+      const ctx = previewCanvas.getContext("2d");
+      previewCanvas.width = 320;
+      previewCanvas.height = 180;
+      try {
+        ctx.drawImage(videoEl, 0, 0, previewCanvas.width, previewCanvas.height);
+      } catch (e) {
+        // В некоторых браузерах может быть ограничение, просто игнорируем
+      }
 
-        // === ЗАПУСК ===
-        loadVideosFromFirebase();
-        console.log('✅ Плеер запущен');
-    </script>
+      videoEl.currentTime = originalTime;
+      videoEl.muted = wasMuted;
+      if (!originalPaused) {
+        videoEl.play();
+      }
+    }
+  }
+
+  function hidePreview() {
+    previewTooltip.classList.remove("visible");
+    previewThumbnail.classList.remove("visible");
+    progressHover.style.width = "0%";
+  }
+
+  function generateCardPreview(videoData, canvas) {
+    const tempVideo = document.createElement("video");
+    tempVideo.src = videoData.src;
+    tempVideo.preload = "metadata";
+    tempVideo.muted = true;
+    tempVideo.addEventListener("loadeddata", () => {
+      const targetTime = Math.min(videoData.previewTime || 1, tempVideo.duration || videoData.previewTime || 1);
+      tempVideo.currentTime = targetTime;
+    });
+    tempVideo.addEventListener("seeked", () => {
+      const ctx = canvas.getContext("2d");
+      canvas.width = 320;
+      canvas.height = 180;
+      try {
+        ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+      } catch (e) {
+        // Игнорируем ошибки
+      }
+      tempVideo.pause();
+    });
+  }
+
+  // -----------------------------
+  // Инициализация списка видео
+  // -----------------------------
+  function initVideoGrid() {
+    videoGrid.innerHTML = "";
+    videoCountLabel.textContent = `${videosData.length} видео`;
+    videosData.forEach((videoData) => {
+      const card = document.createElement("div");
+      card.className = "video-card";
+      card.dataset.id = videoData.id;
+
+      const thumb = document.createElement("div");
+      thumb.className = "video-card-thumb";
+      const canvas = document.createElement("canvas");
+      thumb.appendChild(canvas);
+
+      const durationBadge = document.createElement("div");
+      durationBadge.className = "duration-badge";
+      durationBadge.textContent = videoData.meta.split("•").pop().trim();
+      thumb.appendChild(durationBadge);
+
+      const body = document.createElement("div");
+      body.className = "video-card-body";
+
+      const title = document.createElement("div");
+      title.className = "video-card-title";
+      title.textContent = videoData.title;
+
+      const meta = document.createElement("div");
+      meta.className = "video-card-meta";
+      const timemarkCount = document.createElement("span");
+      timemarkCount.className = "timemark-count";
+      timemarkCount.textContent = `${videoData.timemarks.length} меток`;
+      const metaText = document.createElement("span");
+      metaText.className = "meta";
+      metaText.textContent = videoData.meta;
+
+      meta.appendChild(timemarkCount);
+      meta.appendChild(metaText);
+
+      body.appendChild(title);
+      body.appendChild(meta);
+
+      const hoverLayer = document.createElement("div");
+      hoverLayer.className = "video-card-hover";
+
+      card.appendChild(thumb);
+      card.appendChild(body);
+      card.appendChild(hoverLayer);
+
+      card.addEventListener("click", () => {
+        document.querySelectorAll(".video-card").forEach((c) => c.classList.remove("active"));
+        card.classList.add("active");
+        setVideo(videoData);
+        videoEl.play();
+        updatePlayPauseUI();
+        showControls();
+      });
+
+      videoGrid.appendChild(card);
+
+      generateCardPreview(videoData, canvas);
+    });
+  }
+
+  // -----------------------------
+  // События плеера
+  // -----------------------------
+  videoEl.addEventListener("play", () => {
+    updatePlayPauseUI();
+    showControls();
+  });
+
+  videoEl.addEventListener("pause", () => {
+    updatePlayPauseUI();
+    showControls();
+  });
+
+  videoEl.addEventListener("timeupdate", () => {
+    updateProgressUI();
+  });
+
+  videoEl.addEventListener("loadedmetadata", () => {
+    durationLabel.textContent = formatTime(videoEl.duration);
+  });
+
+  videoEl.addEventListener("click", () => {
+    if (videoEl.paused) {
+      videoEl.play();
+    } else {
+      videoEl.pause();
+    }
+  });
+
+  centerPlayBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (videoEl.paused) {
+      videoEl.play();
+    } else {
+      videoEl.pause();
+    }
+  });
+
+  playPauseBtn.addEventListener("click", () => {
+    if (videoEl.paused) {
+      videoEl.play();
+    } else {
+      videoEl.pause();
+    }
+  });
+
+  fullscreenBtn.addEventListener("click", () => {
+    if (!document.fullscreenElement) {
+      if (videoWrapper.requestFullscreen) {
+        videoWrapper.requestFullscreen();
+      } else if (videoWrapper.webkitRequestFullscreen) {
+        videoWrapper.webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+    }
+  });
+
+  // Авто-скрытие контролов
+  videoWrapper.addEventListener("mousemove", () => {
+    showControls();
+  });
+
+  controlsEl.addEventListener("mouseenter", () => {
+    isMouseOverControls = true;
+  });
+
+  controlsEl.addEventListener("mouseleave", () => {
+    isMouseOverControls = false;
+  });
+
+  // -----------------------------
+  // Прогресс-бар и превью
+  // -----------------------------
+  function getPercentFromEvent(e) {
+    const rect = progressBar.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    let percent = (clientX - rect.left) / rect.width;
+    percent = Math.min(Math.max(percent, 0), 1);
+    return percent;
+  }
+
+  function handleScrubStart(e) {
+    isScrubbing = true;
+    showControls();
+    const percent = getPercentFromEvent(e);
+    seekToPercent(percent);
+    progressHover.style.width = `${percent * 100}%`;
+    showPreviewAtPercent(percent);
+    document.addEventListener("mousemove", handleScrubMove);
+    document.addEventListener("mouseup", handleScrubEnd);
+    document.addEventListener("touchmove", handleScrubMove, { passive: false });
+    document.addEventListener("touchend", handleScrubEnd);
+  }
+
+  function handleScrubMove(e) {
+    if (!isScrubbing) return;
+    e.preventDefault();
+    const percent = getPercentFromEvent(e);
+    seekToPercent(percent);
+    progressHover.style.width = `${percent * 100}%`;
+    showPreviewAtPercent(percent);
+  }
+
+  function handleScrubEnd() {
+    isScrubbing = false;
+    hidePreview();
+    progressHover.style.width = "0%";
+    document.removeEventListener("mousemove", handleScrubMove);
+    document.removeEventListener("mouseup", handleScrubEnd);
+    document.removeEventListener("touchmove", handleScrubMove);
+    document.removeEventListener("touchend", handleScrubEnd);
+  }
+
+  progressWrapper.addEventListener("mousedown", (e) => {
+    handleScrubStart(e);
+  });
+
+  progressWrapper.addEventListener("touchstart", (e) => {
+    handleScrubStart(e);
+  });
+
+  progressWrapper.addEventListener("mousemove", (e) => {
+    if (isScrubbing) return;
+    const percent = getPercentFromEvent(e);
+    progressHover.style.width = `${percent * 100}%`;
+    showPreviewAtPercent(percent);
+  });
+
+  progressWrapper.addEventListener("mouseleave", () => {
+    if (!isScrubbing) {
+      hidePreview();
+    }
+  });
+
+  // -----------------------------
+  // Таймкоды
+  // -----------------------------
+  timemarksToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleTimemarksDropdown();
+  });
+
+  document.addEventListener("click", () => {
+    hideTimemarksDropdown();
+  });
+
+  timemarkAddBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const label = timemarkInput.value.trim();
+    addTimemark(label);
+  });
+
+  timemarkInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const label = timemarkInput.value.trim();
+      addTimemark(label);
+    }
+  });
+
+  // -----------------------------
+  // Управление с клавиатуры
+  // -----------------------------
+  document.addEventListener("keydown", (e) => {
+    if (!currentVideo) return;
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+
+    if (e.code === "Space") {
+      e.preventDefault();
+      if (videoEl.paused) {
+        videoEl.play();
+      } else {
+        videoEl.pause();
+      }
+    } else if (e.code === "ArrowRight") {
+      videoEl.currentTime = Math.min(videoEl.currentTime + 5, videoEl.duration || videoEl.currentTime + 5);
+      showControls();
+    } else if (e.code === "ArrowLeft") {
+      videoEl.currentTime = Math.max(videoEl.currentTime - 5, 0);
+      showControls();
+    } else if (e.code === "KeyF") {
+      fullscreenBtn.click();
+    }
+  });
+
+  // -----------------------------
+  // Touch-события (двойной тап)
+  // -----------------------------
+  let lastTapTime = 0;
+  videoWrapper.addEventListener("touchend", (e) => {
+    const now = Date.now();
+    if (now - lastTapTime < 300) {
+      if (videoEl.paused) {
+        videoEl.play();
+      } else {
+        videoEl.pause();
+      }
+    }
+    lastTapTime = now;
+  });
+
+  // -----------------------------
+  // Старт
+  // -----------------------------
+  initVideoGrid();
+  if (videosData.length > 0) {
+    const first = videosData[0];
+    setVideo(first);
+    const firstCard = document.querySelector(`.video-card[data-id="${first.id}"]`);
+    if (firstCard) firstCard.classList.add("active");
+  }
+</script>
 </body>
 </html>
