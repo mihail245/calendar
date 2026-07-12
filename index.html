@@ -2,776 +2,727 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Видео-плеер с таймкодами</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Gallery</title>
   <style>
-    :root {
-      --bg: #0f0f0f;
-      --card: #1a1a1a;
-      --accent: #ff0000;
-      --text: #ffffff;
-      --muted: #aaaaaa;
+    :root{
+      --bg:#0f0f0f;
+      --card:#1a1a1a;
+      --muted:#a0a0a0;
+      --text:#f2f2f2;
+      --accent:#ff0000;
+      --border:#2a2a2a;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
     }
 
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+    button,input{
+      font:inherit;
     }
 
-    .app {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 16px;
-      width: 100%;
+    .app{
+      min-height:100vh;
     }
 
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:20;
+      background:rgba(15,15,15,.9);
+      backdrop-filter:blur(8px);
+      border-bottom:1px solid var(--border);
+      padding:14px 16px;
+      display:flex;
+      gap:12px;
+      align-items:center;
     }
 
-    header h1 {
-      font-size: 1.4rem;
+    .brand{
+      font-weight:700;
+      letter-spacing:.2px;
+      white-space:nowrap;
     }
 
-    .back-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 12px;
-      border-radius: 999px;
-      border: none;
-      background: var(--card);
-      color: var(--text);
-      cursor: pointer;
-      font-size: 0.9rem;
+    .search{
+      flex:1;
+      max-width:560px;
+      background:#151515;
+      border:1px solid var(--border);
+      border-radius:999px;
+      padding:12px 16px;
+      color:var(--text);
+      outline:none;
     }
 
-    .back-btn span {
-      font-size: 1.1rem;
+    .search:focus{
+      border-color:#444;
     }
 
-    .back-btn.hidden {
-      visibility: hidden;
-      pointer-events: none;
+    .view{
+      padding:18px 16px 28px;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 16px;
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+      gap:16px;
     }
 
-    .card {
-      background: var(--card);
-      border-radius: 12px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      cursor: pointer;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:12px;
+      overflow:hidden;
+      cursor:pointer;
+      transition:.2s transform,.2s border-color;
+      outline:none;
     }
 
-    .card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    .card:hover,
+    .card:focus{
+      transform:translateY(-2px);
+      border-color:#3a3a3a;
     }
 
-    .card-preview {
-      position: relative;
-      background: #111;
-      aspect-ratio: 16 / 9;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--muted);
-      font-size: 2rem;
+    .thumb{
+      aspect-ratio:16/9;
+      background:#111;
+      display:grid;
+      place-items:center;
+      position:relative;
+      overflow:hidden;
     }
 
-    .card-preview canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
+    .thumb img,
+    .thumb canvas{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
     }
 
-    .card-content {
-      padding: 10px 12px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+    .thumb .fallback{
+      font-size:44px;
+      opacity:.8;
+      line-height:1;
     }
 
-    .card-title {
-      font-size: 0.95rem;
-      font-weight: 600;
+    .card-body{
+      padding:12px 12px 14px;
     }
 
-    .card-meta {
-      font-size: 0.8rem;
-      color: var(--muted);
+    .title{
+      font-size:15px;
+      line-height:1.35;
+      margin:0 0 8px;
     }
 
-    .card-desc {
-      font-size: 0.8rem;
-      color: var(--muted);
+    .meta,
+    .desc{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.35;
     }
 
-    /* Player layout */
-    .player-screen {
-      display: none;
-      flex-direction: column;
-      gap: 12px;
+    .desc{
+      margin-top:6px;
+      display:-webkit-box;
+      -webkit-line-clamp:2;
+      -webkit-box-orient:vertical;
+      overflow:hidden;
     }
 
-    .player-screen.active {
-      display: flex;
+    .playerView{
+      display:none;
+      padding:16px;
     }
 
-    .list-screen.active {
-      display: block;
+    .playerShell{
+      max-width:1100px;
+      margin:0 auto;
     }
 
-    .list-screen {
-      display: none;
+    .backRow{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      margin-bottom:14px;
     }
 
-    .player-wrapper {
-      background: var(--card);
-      border-radius: 12px;
-      overflow: hidden;
-      position: relative;
+    .backBtn,
+    .ctrlBtn,
+    .tmBtn,
+    .retryBtn{
+      border:0;
+      border-radius:10px;
+      background:#222;
+      color:var(--text);
+      padding:10px 14px;
+      cursor:pointer;
     }
 
-    .video-container {
-      position: relative;
-      background: #000;
-      aspect-ratio: 16 / 9;
+    .backBtn:hover,
+    .ctrlBtn:hover,
+    .tmBtn:hover,
+    .retryBtn:hover{
+      background:#2c2c2c;
     }
 
-    video {
-      width: 100%;
-      height: 100%;
-      display: block;
-      background: #000;
+    .backBtn{
+      padding:10px 16px;
     }
 
-    .controls {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      padding: 8px 10px;
-      background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      opacity: 1;
-      transition: opacity 0.3s ease;
+    .playerLayout{
+      display:grid;
+      grid-template-columns:1.6fr .9fr;
+      gap:16px;
     }
 
-    .controls.hidden {
-      opacity: 0;
-      pointer-events: none;
+    .videoWrap{
+      background:#000;
+      border-radius:16px;
+      overflow:hidden;
+      position:relative;
     }
 
-    .controls-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
+    .videoEl{
+      width:100%;
+      aspect-ratio:16/9;
+      display:block;
+      background:#000;
+      outline:none;
+      object-fit:contain;
+      cursor:pointer;
     }
 
-    .controls-left,
-    .controls-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .controls{
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:0;
+      padding:14px;
+      background:linear-gradient(transparent,rgba(0,0,0,.85));
+      opacity:1;
+      transition:opacity .25s;
     }
 
-    .control-btn {
-      border: none;
-      background: transparent;
-      color: var(--text);
-      cursor: pointer;
-      font-size: 1rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 4px;
+    .controls.hidden{
+      opacity:0;
+      pointer-events:none;
     }
 
-    .control-btn.accent {
-      color: var(--accent);
+    .progress{
+      width:100%;
+      height:6px;
+      margin:0 0 10px;
+      accent-color:var(--accent);
     }
 
-    .time-display {
-      font-size: 0.8rem;
-      color: var(--muted);
-      min-width: 90px;
+    .controlRow{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
     }
 
-    .progress-wrapper {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+    .spacer{
+      flex:1;
     }
 
-    .progress {
-      flex: 1;
-      -webkit-appearance: none;
-      appearance: none;
-      height: 4px;
-      border-radius: 999px;
-      background: #333;
-      cursor: pointer;
+    .time{
+      font-variant-numeric:tabular-nums;
+      color:#ddd;
+      font-size:13px;
     }
 
-    .progress::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: var(--accent);
-      cursor: pointer;
+    .centerPlay{
+      position:absolute;
+      inset:0;
+      display:grid;
+      place-items:center;
+      background:transparent;
+      border:0;
+      color:white;
+      font-size:72px;
+      cursor:pointer;
+      text-shadow:0 0 20px rgba(0,0,0,.6);
     }
 
-    .progress::-moz-range-thumb {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: var(--accent);
-      cursor: pointer;
-      border: none;
+    .errorState{
+      display:none;
+      position:absolute;
+      inset:0;
+      background:rgba(0,0,0,.8);
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+      gap:12px;
+      padding:24px;
+      text-align:center;
     }
 
-    .progress::-moz-range-track {
-      background: #333;
-      height: 4px;
-      border-radius: 999px;
+    .errorState p{
+      margin:0;
+      font-size:18px;
     }
 
-    .player-info {
-      padding: 10px 12px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+    .side{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
     }
 
-    .player-title {
-      font-size: 1rem;
-      font-weight: 600;
+    .panel{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:14px;
     }
 
-    .player-meta {
-      font-size: 0.85rem;
-      color: var(--muted);
+    .panel h3{
+      margin:0 0 8px;
+      font-size:16px;
     }
 
-    .player-desc {
-      font-size: 0.85rem;
-      color: var(--muted);
+    .tmMenu{
+      display:none;
+      flex-direction:column;
+      gap:8px;
+      max-height:280px;
+      overflow:auto;
     }
 
-    /* Timemarks */
-    .timemark-wrapper {
-      position: relative;
-      display: inline-block;
+    .tmMenu.open{
+      display:flex;
     }
 
-    .timemark-menu {
-      position: absolute;
-      right: 0;
-      bottom: 110%;
-      background: #181818;
-      border-radius: 8px;
-      padding: 6px 0;
-      min-width: 180px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
-      z-index: 10;
+    .tmItem{
+      width:100%;
+      text-align:left;
+      border:1px solid var(--border);
+      background:#141414;
+      color:var(--text);
+      border-radius:10px;
+      padding:10px 12px;
+      cursor:pointer;
     }
 
-    .timemark-item {
-      padding: 6px 10px;
-      font-size: 0.85rem;
-      color: var(--text);
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      gap: 6px;
+    .tmItem span{
+      display:block;
+      color:var(--muted);
+      font-size:12px;
+      margin-top:3px;
     }
 
-    .timemark-item:hover {
-      background: #222;
+    .note{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.45;
     }
 
-    .timemark-time {
-      color: var(--muted);
-      font-size: 0.8rem;
+    .hidden{
+      display:none !important;
     }
 
-    /* Error overlay */
-    .error-overlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.85);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      text-align: center;
-      padding: 12px;
-    }
-
-    .error-overlay p {
-      font-size: 0.9rem;
-      color: var(--muted);
-    }
-
-    .retry-btn {
-      padding: 8px 14px;
-      border-radius: 999px;
-      border: none;
-      background: var(--accent);
-      color: #fff;
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-
-    /* Responsive */
-    @media (max-width: 600px) {
-      header h1 {
-        font-size: 1.1rem;
+    @media (max-width:900px){
+      .playerLayout{
+        grid-template-columns:1fr;
       }
-      .controls-row {
-        flex-wrap: wrap;
+      .side{
+        order:2;
       }
-      .time-display {
-        min-width: auto;
+    }
+
+    @media (max-width:640px){
+      .grid{
+        grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+      }
+      .search{
+        max-width:none;
+      }
+      .title{
+        font-size:14px;
+      }
+      .centerPlay{
+        font-size:56px;
       }
     }
   </style>
 </head>
 <body>
-  <div class="app">
-    <header>
-      <h1>Видео-галерея</h1>
-      <button class="back-btn hidden" id="backBtn">
-        <span>←</span> Назад
-      </button>
-    </header>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">Video Gallery</div>
+    <input class="search" id="search" placeholder="Поиск видео..." />
+  </header>
 
-    <main>
-      <section class="list-screen active" id="listScreen">
-        <div class="grid" id="videoGrid"></div>
-      </section>
+  <main id="listView" class="view">
+    <div class="grid" id="grid"></div>
+  </main>
 
-      <section class="player-screen" id="playerScreen">
-        <div class="player-wrapper">
-          <div class="video-container" id="videoContainer">
-            <video id="video" preload="metadata"></video>
+  <main id="playerView" class="playerView">
+    <div class="playerShell">
+      <div class="backRow">
+        <button class="backBtn" id="backBtn">← Назад</button>
+        <div id="playerTitle" style="font-weight:600"></div>
+      </div>
+
+      <div class="playerLayout">
+        <div>
+          <div class="videoWrap" id="videoWrap">
+            <video id="video" class="videoEl" preload="metadata" playsinline></video>
+            <button class="centerPlay" id="centerPlay" aria-label="Play/Pause">▶</button>
+
+            <div class="errorState" id="errorState">
+              <p>Видео недоступно</p>
+              <button class="retryBtn" id="retryBtn">Попробовать снова</button>
+            </div>
 
             <div class="controls" id="controls">
-              <div class="progress-wrapper">
-                <input type="range" id="progress" class="progress" min="0" max="100" value="0" />
-              </div>
-              <div class="controls-row">
-                <div class="controls-left">
-                  <button class="control-btn accent" id="playPauseBtn">▶</button>
-                  <span class="time-display" id="timeDisplay">00:00 / 00:00</span>
-                </div>
-                <div class="controls-right">
-                  <div class="timemark-wrapper">
-                    <button class="control-btn" id="timemarkToggle">⏱ Таймкод</button>
-                    <div class="timemark-menu" id="timemarkMenu" style="display:none;"></div>
-                  </div>
-                  <button class="control-btn" id="fullscreenBtn">⛶</button>
-                </div>
+              <input class="progress" id="progress" type="range" min="0" max="100" value="0" step="0.1" />
+              <div class="controlRow">
+                <button class="ctrlBtn" id="playBtn">▶</button>
+                <div class="time" id="time">0:00 / 0:00</div>
+                <button class="tmBtn" id="tmBtn">⏱ Таймкод</button>
+                <button class="ctrlBtn" id="fsBtn">⛶</button>
+                <div class="spacer"></div>
               </div>
             </div>
-
-            <div class="error-overlay" id="errorOverlay" style="display:none;">
-              <p>Видео недоступно</p>
-              <button class="retry-btn" id="retryBtn">Попробовать снова</button>
-            </div>
-          </div>
-
-          <div class="player-info">
-            <div class="player-title" id="playerTitle"></div>
-            <div class="player-meta" id="playerMeta"></div>
-            <div class="player-desc" id="playerDesc"></div>
           </div>
         </div>
-      </section>
-    </main>
-  </div>
 
-  <script>
-    // Вставь сюда свои реальные ссылки на MP4
-    const videos = [
-      {
-        id: 1,
-        title: "Пример видео 1",
-        src: "https://sel9incestiksektor.tophotvideos.com/remote_control.php?time=1783816106&cv=6a5e22744e3ac3c566adb30f29613179&lr=566250&cv2=24b50f9123aabe70a43fab9269559915&file=%2Fvideos%2F70000%2F70990%2F70990.mp4&cv3=6ba8c3f689e70beceee21fb2c741bed6&cv4=d4b9d3fa47d55d94297edce3003eaf02",
-        description: "Описание первого видео.",
-        meta: "Автор 1",
-        previewTime: 5,
-        timemarks: [
-          { time: 10, label: "Интересный момент" },
-          { time: 30, label: "Важная часть" }
-        ]
-      },
-      {
-        id: 2,
-        title: "Пример видео 2",
-        src: "https://sel9incestiksektor.tophotvideos.com/remote_control.php?time=1783816106&cv=6a5e22744e3ac3c566adb30f29613179&lr=566250&cv2=24b50f9123aabe70a43fab9269559915&file=%2Fvideos%2F70000%2F70990%2F70990.mp4&cv3=6ba8c3f689e70beceee21fb2c741bed6&cv4=d4b9d3fa47d55d94297edce3003eaf02",
-        description: "Описание второго видео.",
-        meta: "Автор 2",
-        previewTime: 8,
-        timemarks: [
-          { time: 5, label: "Начало сюжета" },
-          { time: 45, label: "Кульминация" }
-        ]
-      }
-    ];
+        <aside class="side">
+          <div class="panel">
+            <h3>Описание</h3>
+            <div class="note" id="playerDesc"></div>
+            <div class="note" id="playerMeta" style="margin-top:10px"></div>
+          </div>
 
-    const gridEl = document.getElementById("videoGrid");
-    const listScreen = document.getElementById("listScreen");
-    const playerScreen = document.getElementById("playerScreen");
-    const backBtn = document.getElementById("backBtn");
+          <div class="panel">
+            <h3>Закладки</h3>
+            <div class="tmMenu" id="tmMenu"></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+</div>
 
-    const videoEl = document.getElementById("video");
-    const controlsEl = document.getElementById("controls");
-    const progressEl = document.getElementById("progress");
-    const timeDisplayEl = document.getElementById("timeDisplay");
-    const playPauseBtn = document.getElementById("playPauseBtn");
-    const fullscreenBtn = document.getElementById("fullscreenBtn");
-    const timemarkToggle = document.getElementById("timemarkToggle");
-    const timemarkMenu = document.getElementById("timemarkMenu");
-    const errorOverlay = document.getElementById("errorOverlay");
-    const retryBtn = document.getElementById("retryBtn");
-    const videoContainer = document.getElementById("videoContainer");
+<script>
+const videos = [
+  {
+    id: 1,
+    title: "Видео 1",
+    src: "https://sel9incestiksektor.tophotvideos.com/remote_control.php?time=1783816106&cv=6a5e22744e3ac3c566adb30f29613179&lr=566250&cv2=24b50f9123aabe70a43fab9269559915&file=%2Fvideos%2F70000%2F70990%2F70990.mp4&cv3=6ba8c3f689e70beceee21fb2c741bed6&cv4=d4b9d3fa47d55d94297edce3003eaf02",
+    description: "Описание видео 1",
+    meta: "Источник 1",
+    previewTime: 5,
+    timemarks: [
+      { time: 10, label: "Интересный момент" },
+      { time: 30, label: "Важная часть" }
+    ]
+  },
+  {
+    id: 2,
+    title: "Видео 2",
+    src: "https://sel9incestiksektor.tophotvideos.com/remote_control.php?time=1783816106&cv=6a5e22744e3ac3c566adb30f29613179&lr=566250&cv2=24b50f9123aabe70a43fab9269559915&file=%2Fvideos%2F70000%2F70990%2F70990.mp4&cv3=6ba8c3f689e70beceee21fb2c741bed6&cv4=d4b9d3fa47d55d94297edce3003eaf02",
+    description: "Описание видео 2",
+    meta: "Источник 2",
+    previewTime: 8,
+    timemarks: [
+      { time: 15, label: "Старт" },
+      { time: 45, label: "Середина" }
+    ]
+  }
+];
 
-    const playerTitle = document.getElementById("playerTitle");
-    const playerMeta = document.getElementById("playerMeta");
-    const playerDesc = document.getElementById("playerDesc");
+const grid = document.getElementById("grid");
+const search = document.getElementById("search");
+const listView = document.getElementById("listView");
+const playerView = document.getElementById("playerView");
 
-    let currentVideo = null;
-    let controlsHideTimeout = null;
-    let isControlsVisible = true;
+const video = document.getElementById("video");
+const wrap = document.getElementById("videoWrap");
+const controls = document.getElementById("controls");
+const centerPlay = document.getElementById("centerPlay");
+const playBtn = document.getElementById("playBtn");
+const progress = document.getElementById("progress");
+const timeEl = document.getElementById("time");
+const fsBtn = document.getElementById("fsBtn");
+const backBtn = document.getElementById("backBtn");
+const tmBtn = document.getElementById("tmBtn");
+const tmMenu = document.getElementById("tmMenu");
+const errorState = document.getElementById("errorState");
+const retryBtn = document.getElementById("retryBtn");
 
-    // Форматирование времени
-    function formatTime(sec) {
-      if (isNaN(sec)) return "00:00";
-      const s = Math.floor(sec % 60);
-      const m = Math.floor(sec / 60);
-      const mm = m.toString().padStart(2, "0");
-      const ss = s.toString().padStart(2, "0");
-      return `${mm}:${ss}`;
-    }
+const playerTitle = document.getElementById("playerTitle");
+const playerDesc = document.getElementById("playerDesc");
+const playerMeta = document.getElementById("playerMeta");
 
-    // Показ/скрытие экранов
-    function showList() {
-      playerScreen.classList.remove("active");
-      listScreen.classList.add("active");
-      backBtn.classList.add("hidden");
-      videoEl.pause();
-      currentVideo = null;
-    }
+let hideTimer = null;
+let currentVideo = null;
 
-    function showPlayer(videoData) {
-      currentVideo = videoData;
-      listScreen.classList.remove("active");
-      playerScreen.classList.add("active");
-      backBtn.classList.remove("hidden");
+function fmt(s) {
+  s = Math.max(0, Math.floor(s || 0));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2, "0")}`;
+}
 
-      playerTitle.textContent = videoData.title;
-      playerMeta.textContent = videoData.meta || "";
-      playerDesc.textContent = videoData.description || "";
+function showList() {
+  listView.classList.remove("hidden");
+  playerView.style.display = "none";
+}
 
-      errorOverlay.style.display = "none";
-      videoEl.src = videoData.src;
-      videoEl.load();
-      videoEl.play().catch(() => {
-        // Если автозапуск не удался — просто оставить на паузе
-      });
+function showPlayer() {
+  listView.classList.add("hidden");
+  playerView.style.display = "block";
+}
 
-      buildTimemarkMenu(videoData);
-      resetControlsVisibility();
-    }
+function updatePlayState() {
+  const playing = !video.paused && !video.ended;
+  playBtn.textContent = playing ? "❚❚" : "▶";
+  centerPlay.textContent = playing ? "❚❚" : "▶";
+}
 
-    backBtn.addEventListener("click", showList);
+function hideControls() {
+  clearTimeout(hideTimer);
+  if (!video.paused && !video.ended) {
+    hideTimer = setTimeout(() => {
+      controls.classList.add("hidden");
+    }, 3000);
+  }
+}
 
-    // Создание карточек
-    function createCard(videoData) {
-      const card = document.createElement("div");
-      card.className = "card";
+function showControls() {
+  controls.classList.remove("hidden");
+  hideControls();
+}
 
-      const preview = document.createElement("div");
-      preview.className = "card-preview";
-
-      const canvas = document.createElement("canvas");
-      preview.appendChild(canvas);
-
-      const iconFallback = document.createElement("div");
-      iconFallback.textContent = "🎬";
-      iconFallback.style.display = "none";
-      preview.appendChild(iconFallback);
-
-      const content = document.createElement("div");
-      content.className = "card-content";
-
-      const title = document.createElement("div");
-      title.className = "card-title";
-      title.textContent = videoData.title;
-
-      const meta = document.createElement("div");
-      meta.className = "card-meta";
-      meta.textContent = videoData.meta || "";
-
-      const desc = document.createElement("div");
-      desc.className = "card-desc";
-      desc.textContent = videoData.description || "";
-
-      content.appendChild(title);
-      content.appendChild(meta);
-      content.appendChild(desc);
-
-      card.appendChild(preview);
-      card.appendChild(content);
-
-      // Генерация превью через временный video + canvas
-      generatePreview(videoData, canvas, iconFallback);
-
-      card.addEventListener("click", () => {
-        showPlayer(videoData);
-      });
-
-      return card;
-    }
-
-    function generatePreview(videoData, canvas, iconFallback) {
-      const tempVideo = document.createElement("video");
-      tempVideo.src = videoData.src;
-      tempVideo.preload = "metadata";
-      tempVideo.muted = true;
-      tempVideo.crossOrigin = "anonymous";
-
-      const ctx = canvas.getContext("2d");
-
-      tempVideo.addEventListener("loadeddata", () => {
-        const w = tempVideo.videoWidth || 640;
-        const h = tempVideo.videoHeight || 360;
-        canvas.width = w;
-        canvas.height = h;
-
-        const targetTime = videoData.previewTime || 5;
-        function captureFrame() {
-          try {
-            ctx.drawImage(tempVideo, 0, 0, w, h);
-          } catch (e) {
-            iconFallback.style.display = "block";
-            canvas.style.display = "none";
-          }
-          tempVideo.pause();
-          tempVideo.remove();
-        }
-
-        if (!isNaN(tempVideo.duration) && targetTime <= tempVideo.duration) {
-          tempVideo.currentTime = targetTime;
-          tempVideo.addEventListener("seeked", captureFrame, { once: true });
-        } else {
-          captureFrame();
-        }
-      });
-
-      tempVideo.addEventListener("error", () => {
-        iconFallback.style.display = "block";
-        canvas.style.display = "none";
-      });
-    }
-
-    // Заполнение сетки
-    videos.forEach(v => {
-      const card = createCard(v);
-      gridEl.appendChild(card);
-    });
-
-    // Обновление прогресса и времени
-    videoEl.addEventListener("timeupdate", () => {
-      const current = videoEl.currentTime;
-      const duration = videoEl.duration || 0;
-      const percent = duration ? (current / duration) * 100 : 0;
-      progressEl.value = percent;
-      timeDisplayEl.textContent = `${formatTime(current)} / ${formatTime(duration)}`;
-    });
-
-    videoEl.addEventListener("loadedmetadata", () => {
-      timeDisplayEl.textContent = `${formatTime(0)} / ${formatTime(videoEl.duration)}`;
-    });
-
-    videoEl.addEventListener("play", () => {
-      playPauseBtn.textContent = "⏸";
-    });
-
-    videoEl.addEventListener("pause", () => {
-      playPauseBtn.textContent = "▶";
-    });
-
-    videoEl.addEventListener("click", () => {
-      togglePlay();
-    });
-
-    // Ошибка загрузки
-    videoEl.addEventListener("error", () => {
-      errorOverlay.style.display = "flex";
-    });
-
-    retryBtn.addEventListener("click", () => {
-      if (!currentVideo) return;
-      errorOverlay.style.display = "none";
-      videoEl.src = currentVideo.src;
-      videoEl.load();
-      videoEl.play().catch(() => {});
-    });
-
-    // Управление воспроизведением
-    function togglePlay() {
-      if (videoEl.paused) {
-        videoEl.play().catch(() => {});
-      } else {
-        videoEl.pause();
-      }
-    }
-
-    playPauseBtn.addEventListener("click", togglePlay);
-
-    // Перемотка
-    progressEl.addEventListener("input", () => {
-      const duration = videoEl.duration || 0;
-      const percent = parseFloat(progressEl.value);
-      videoEl.currentTime = (percent / 100) * duration;
-    });
-
-    // Полноэкранный режим
-    fullscreenBtn.addEventListener("click", () => {
-      if (!document.fullscreenElement) {
-        if (videoContainer.requestFullscreen) {
-          videoContainer.requestFullscreen();
-        }
-      } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        }
-      }
-    });
-
-    // Таймкоды
-    function buildTimemarkMenu(videoData) {
-      timemarkMenu.innerHTML = "";
-      if (!videoData.timemarks || !videoData.timemarks.length) {
-        const empty = document.createElement("div");
-        empty.className = "timemark-item";
-        empty.textContent = "Нет таймкодов";
-        timemarkMenu.appendChild(empty);
-        return;
-      }
-
-      videoData.timemarks.forEach(mark => {
-        const item = document.createElement("div");
-        item.className = "timemark-item";
-        const labelSpan = document.createElement("span");
-        labelSpan.textContent = mark.label;
-        const timeSpan = document.createElement("span");
-        timeSpan.className = "timemark-time";
-        timeSpan.textContent = formatTime(mark.time);
-        item.appendChild(labelSpan);
-        item.appendChild(timeSpan);
-
-        item.addEventListener("click", () => {
-          videoEl.currentTime = mark.time;
-          videoEl.play().catch(() => {});
-          timemarkMenu.style.display = "none";
-        });
-
-        timemarkMenu.appendChild(item);
-      });
-    }
-
-    timemarkToggle.addEventListener("click", (e) => {
-      e.stopPropagation();
-      timemarkMenu.style.display = timemarkMenu.style.display === "none" ? "block" : "none";
-    });
-
-    document.addEventListener("click", () => {
-      timemarkMenu.style.display = "none";
-    });
-
-    // Авто-скрытие контролов
-    function showControls() {
-      controlsEl.classList.remove("hidden");
-      isControlsVisible = true;
-      if (controlsHideTimeout) {
-        clearTimeout(controlsHideTimeout);
-      }
-      controlsHideTimeout = setTimeout(() => {
-        if (!videoEl.paused) {
-          controlsEl.classList.add("hidden");
-          isControlsVisible = false;
-        }
-      }, 3000);
-    }
-
-    function resetControlsVisibility() {
+function buildTimemarks(v) {
+  tmMenu.innerHTML = "";
+  (v.timemarks || []).forEach(tm => {
+    const btn = document.createElement("button");
+    btn.className = "tmItem";
+    btn.innerHTML = `${tm.label}<span>${fmt(tm.time)}</span>`;
+    btn.onclick = () => {
+      video.currentTime = tm.time;
+      video.play().catch(() => {});
       showControls();
-    }
+    };
+    tmMenu.appendChild(btn);
+  });
+}
 
-    videoContainer.addEventListener("mousemove", () => {
-      showControls();
-    });
+function openVideo(v) {
+  currentVideo = v;
+  playerTitle.textContent = v.title;
+  playerDesc.textContent = v.description;
+  playerMeta.textContent = v.meta;
+  buildTimemarks(v);
 
-    videoContainer.addEventListener("touchstart", () => {
-      if (!isControlsVisible) {
-        showControls();
-      } else {
-        controlsEl.classList.toggle("hidden");
-        isControlsVisible = !isControlsVisible;
-      }
-    });
+  errorState.style.display = "none";
+  tmMenu.classList.remove("open");
+  progress.value = 0;
+  timeEl.textContent = "0:00 / 0:00";
+  video.src = v.src;
+  video.load();
 
-    // Управление клавиатурой: пробел, стрелки, F
-    document.addEventListener("keydown", (e) => {
-      if (!playerScreen.classList.contains("active")) return;
+  showPlayer();
+  video.play().catch(() => {});
+}
 
-      if (e.code === "Space") {
+function renderGrid(items) {
+  grid.innerHTML = "";
+  items.forEach(v => {
+    const c = document.createElement("article");
+    c.className = "card";
+    c.tabIndex = 0;
+
+    c.innerHTML = `
+      <div class="thumb">
+        <div class="fallback">🎬</div>
+      </div>
+      <div class="card-body">
+        <h2 class="title">${v.title}</h2>
+        <div class="meta">${v.meta}</div>
+        <div class="desc">${v.description}</div>
+      </div>
+    `;
+
+    c.addEventListener("click", () => openVideo(v));
+    c.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        togglePlay();
-        showControls();
-      } else if (e.code === "ArrowRight") {
-        videoEl.currentTime = Math.min(videoEl.currentTime + 5, videoEl.duration || videoEl.currentTime + 5);
-        showControls();
-      } else if (e.code === "ArrowLeft") {
-        videoEl.currentTime = Math.max(videoEl.currentTime - 5, 0);
-        showControls();
-      } else if (e.key.toLowerCase() === "f") {
-        fullscreenBtn.click();
-        showControls();
+        openVideo(v);
       }
     });
-  </script>
+
+    grid.appendChild(c);
+    generatePreview(c.querySelector(".thumb"), v);
+  });
+}
+
+function generatePreview(container, v) {
+  const vid = document.createElement("video");
+  vid.crossOrigin = "anonymous";
+  vid.src = v.src;
+  vid.muted = true;
+  vid.preload = "metadata";
+  vid.playsInline = true;
+
+  let done = false;
+
+  const fallback = () => {
+    if (done) return;
+    done = true;
+    container.innerHTML = '<div class="fallback">🎬</div>';
+  };
+
+  vid.addEventListener("error", fallback);
+
+  vid.addEventListener("loadeddata", () => {
+    const target = Math.min(v.previewTime || 1, Math.max(0, (vid.duration || 2) - 0.1));
+    try {
+      vid.currentTime = target;
+    } catch (e) {
+      fallback();
+    }
+  });
+
+  vid.addEventListener("seeked", () => {
+    if (done) return;
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 320;
+      canvas.height = 180;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
+      container.innerHTML = "";
+      container.appendChild(canvas);
+      done = true;
+    } catch (e) {
+      fallback();
+    }
+  });
+
+  setTimeout(fallback, 3500);
+}
+
+playBtn.onclick = () => video.paused ? video.play() : video.pause();
+centerPlay.onclick = () => video.paused ? video.play() : video.pause();
+
+retryBtn.onclick = () => {
+  errorState.style.display = "none";
+  video.load();
+  video.play().catch(() => {});
+};
+
+backBtn.onclick = () => {
+  video.pause();
+  showList();
+};
+
+tmBtn.onclick = () => {
+  tmMenu.classList.toggle("open");
+};
+
+fsBtn.onclick = () => {
+  const el = wrap;
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  } else {
+    el.requestFullscreen?.();
+  }
+};
+
+progress.oninput = e => {
+  if (video.duration) {
+    video.currentTime = (e.target.value / 100) * video.duration;
+  }
+};
+
+video.addEventListener("timeupdate", () => {
+  if (video.duration) {
+    progress.value = (video.currentTime / video.duration) * 100;
+    timeEl.textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
+  }
+});
+
+video.addEventListener("loadedmetadata", () => {
+  timeEl.textContent = `0:00 / ${fmt(video.duration)}`;
+});
+
+video.addEventListener("play", () => {
+  updatePlayState();
+  showControls();
+});
+
+video.addEventListener("pause", () => {
+  updatePlayState();
+  controls.classList.remove("hidden");
+  clearTimeout(hideTimer);
+});
+
+video.addEventListener("ended", () => {
+  updatePlayState();
+  controls.classList.remove("hidden");
+});
+
+video.addEventListener("error", () => {
+  errorState.style.display = "flex";
+  updatePlayState();
+  controls.classList.remove("hidden");
+});
+
+wrap.addEventListener("mousemove", showControls);
+wrap.addEventListener("touchstart", showControls, { passive: true });
+
+wrap.addEventListener("click", e => {
+  if (e.target === wrap || e.target === video) {
+    video.paused ? video.play() : video.pause();
+  }
+});
+
+document.addEventListener("keydown", e => {
+  if (playerView.style.display === "none") return;
+
+  if (e.key === " ") {
+    e.preventDefault();
+    video.paused ? video.play() : video.pause();
+  }
+
+  if (e.key === "ArrowRight") {
+    video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
+  }
+
+  if (e.key === "ArrowLeft") {
+    video.currentTime = Math.max(0, video.currentTime - 5);
+  }
+
+  if (e.key === "f" || e.key === "F") {
+    e.preventDefault();
+    fsBtn.click();
+  }
+});
+
+search.oninput = () => {
+  const q = search.value.toLowerCase().trim();
+  renderGrid(
+    videos.filter(v =>
+      [v.title, v.description, v.meta].join(" ").toLowerCase().includes(q)
+    )
+  );
+};
+
+renderGrid(videos);
+showList();
+</script>
 </body>
 </html>
