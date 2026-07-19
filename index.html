@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>График работы 2/2 — Календарь с Firebase</title>
+    <title>График работы 2/2 — Календарь с Firebase (двусторонний пересчёт)</title>
     <style>
         :root {
             --work-bg: #fff9c4;
@@ -437,7 +437,8 @@
         // КОНСТАНТЫ
         // ═══════════════════════════════════════════════════════════════
         const START_DATE_STR = '2026-01-01'; // Точка отсчёта графика
-        const END_RECALC_STR = '2100-12-31'; // До какой даты пересчитываем
+        const END_RECALC_STR = '2100-12-31'; // До какой даты пересчитываем вперёд
+        const BEGIN_RECALC_STR = '2020-01-01'; // До какой даты пересчитываем назад
         const WORK_ICON = '👧'; // Иконка рабочего дня (девки)
         const REST_ICON = '👦'; // Иконка выходного дня (пацаны)
         const WORK = 'work';
@@ -449,16 +450,11 @@
         // ═══════════════════════════════════════════════════════════════
         // ГЛОБАЛЬНОЕ СОСТОЯНИЕ
         // ═══════════════════════════════════════════════════════════════
-        // Кэш статусов дней. Ключ: 'YYYY-MM-DD', значение: 'work' | 'rest'
         let dayStatuses = {};
-        // Только переопределённые пользователем дни (не полный базовый цикл)
         let userOverrides = {};
-        // Флаг загрузки из Firebase
         let initialLoadComplete = false;
-        // Отложенное сохранение
         let saveTimeout = null;
 
-        // Текущий отображаемый месяц
         let currentYear;
         let currentMonth; // 0..11
 
@@ -497,17 +493,11 @@
         // FIREBASE: СОХРАНЕНИЕ И ЗАГРУЗКА
         // ═══════════════════════════════════════════════════════════════
 
-        /**
-         * Сохраняет только пользовательские переопределения в Firebase.
-         * Отправляем компактный объект { "YYYY-MM-DD": "work"|"rest", ... }
-         */
         async function saveOverridesToFirebase() {
-            if (!initialLoadComplete) return; // Не сохраняем до завершения начальной загрузки
-
+            if (!initialLoadComplete) return;
             try {
                 setSyncStatus('syncing', 'Сохранение...');
                 const overridesRef = ref(database, FIREBASE_PATH);
-                // Сохраняем только то, что пользователь менял вручную
                 await set(overridesRef, userOverrides);
                 setSyncStatus('synced', 'Сохранено');
                 console.log('✅ Переопределения сохранены в Firebase:', Object.keys(userOverrides).length,
@@ -518,27 +508,19 @@
             }
         }
 
-        /**
-         * Отложенное сохранение (debounce), чтобы не спамить Firebase при быстрых кликах.
-         */
         function debouncedSave() {
             if (saveTimeout) clearTimeout(saveTimeout);
             saveTimeout = setTimeout(() => {
                 saveOverridesToFirebase();
                 saveTimeout = null;
-            }, 500); // Сохраняем через 500 мс после последнего изменения
+            }, 500);
         }
 
-        /**
-         * Загружает пользовательские переопределения из Firebase.
-         * Возвращает объект переопределений или пустой объект.
-         */
         async function loadOverridesFromFirebase() {
             try {
                 setSyncStatus('syncing', 'Загрузка данных...');
                 const overridesRef = ref(database, FIREBASE_PATH);
                 const snapshot = await get(overridesRef);
-
                 if (snapshot.exists()) {
                     const data = snapshot.val();
                     console.log('📥 Загружены переопределения из Firebase:', Object.keys(data).length, 'дней');
@@ -560,10 +542,6 @@
         // ПОСТРОЕНИЕ БАЗОВОГО ЦИКЛА 2/2 ОТ 1 ЯНВАРЯ 2026
         // ═══════════════════════════════════════════════════════════════
 
-        /**
-         * Вычисляет "базовый" статус для любой даты,
-         * как если бы цикл 2/2 шёл от 1 января 2026 без изменений.
-         */
         function computeBaseStatus(dateStr) {
             const start = parseDate(START_DATE_STR);
             const target = parseDate(dateStr);
@@ -580,13 +558,11 @@
         }
 
         /**
-         * Полностью перестраивает dayStatuses на основе:
-         * 1. Базового цикла от 2026-01-01
-         * 2. Поверх применяет пользовательские переопределения из userOverrides
-         * 3. Для дат, которые есть в переопределениях, пересчитывает будущее
+         * Полностью перестраивает dayStatuses на основе базового цикла
+         * и применяет поверх пользовательские переопределения.
          */
         function rebuildFullStatuses() {
-            // Шаг 1: Строим базовый цикл
+            // Шаг 1: Строим базовый цикл от START_DATE до END_RECALC
             const startDate = parseDate(START_DATE_STR);
             const endDate = parseDate(END_RECALC_STR);
             const cursor = new Date(startDate);
@@ -606,30 +582,40 @@
                 cursor.setDate(cursor.getDate() + 1);
             }
 
-            // Шаг 2: Применяем пользовательские переопределения в хронологическом порядке
+            // Также заполняем дни до START_DATE (для обратного пересчёта)
+            const beginDate = parseDate(BEGIN_RECALC_STR);
+            const backCursor = new Date(startDate);
+            backCursor.setDate(backCursor.getDate() - 1);
+
+            // Идём назад от START_DATE
+            status = REST; // День перед 2026-01-01 (31.12.2025) — выходной
+            count = 0;
+            while (backCursor >= beginDate) {
+                const key = formatDate(backCursor);
+                dayStatuses[key] = status;
+                count++;
+                if (count >= 2) {
+                    count = 0;
+                    status = (status === WORK) ? REST : WORK;
+                }
+                backCursor.setDate(backCursor.getDate() - 1);
+            }
+
+            // Шаг 2: Применяем пользовательские переопределения
             if (Object.keys(userOverrides).length > 0) {
-                // Сортируем даты переопределений хронологически
                 const overriddenDates = Object.keys(userOverrides).sort();
-
                 for (const dateStr of overriddenDates) {
-                    if (dateStr < START_DATE_STR || dateStr > END_RECALC_STR) continue;
-
+                    if (dateStr < BEGIN_RECALC_STR || dateStr > END_RECALC_STR) continue;
                     const newStatus = userOverrides[dateStr];
-                    // Устанавливаем статус для этой даты
                     dayStatuses[dateStr] = newStatus;
-
-                    // Пересчитываем все дни после этой даты
-                    recalculateAfterInMemory(dateStr);
+                    // Двусторонний пересчёт от этой даты
+                    recalculateBothDirections(dateStr);
                 }
             }
 
-            console.log('🔄 Полная перестройка статусов завершена. Переопределений:', Object.keys(userOverrides)
-                .length);
+            console.log('🔄 Полная перестройка статусов завершена.');
         }
 
-        /**
-         * Возвращает статус дня из кэша dayStatuses.
-         */
         function getStatus(dateStr) {
             if (dayStatuses.hasOwnProperty(dateStr)) {
                 return dayStatuses[dateStr];
@@ -637,23 +623,27 @@
             return computeBaseStatus(dateStr);
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // ДВУСТОРОННИЙ ПЕРЕСЧЁТ
+        // ═══════════════════════════════════════════════════════════════
+
         /**
-         * Пересчитывает статусы всех дней ПОСЛЕ указанной даты в памяти (dayStatuses).
-         * Не трогает userOverrides и не сохраняет в Firebase.
+         * Пересчитывает статусы дней ВПЕРЁД от указанной даты (не включая её),
+         * продолжая цикл 2/2 на основе статуса этой даты и предыдущих дней.
          */
-        function recalculateAfterInMemory(anchorDateStr) {
+        function recalculateForward(anchorDateStr) {
             const anchorDate = parseDate(anchorDateStr);
             const anchorStatus = dayStatuses[anchorDateStr];
             if (!anchorStatus) return;
 
-            // Считаем длину серии назад
+            // Считаем длину серии назад от anchorDate (включая её)
             let runLength = 1;
             const checkDate = new Date(anchorDate);
-            const startLimit = parseDate(START_DATE_STR);
+            const beginLimit = parseDate(BEGIN_RECALC_STR);
 
             while (true) {
                 checkDate.setDate(checkDate.getDate() - 1);
-                if (checkDate < startLimit) break;
+                if (checkDate < beginLimit) break;
                 const checkStr = formatDate(checkDate);
                 if (getStatus(checkStr) === anchorStatus) {
                     runLength++;
@@ -664,7 +654,6 @@
 
             let currentStatus = anchorStatus;
             let daysLeft;
-
             if (runLength >= 2) {
                 currentStatus = (currentStatus === WORK) ? REST : WORK;
                 daysLeft = 2;
@@ -688,6 +677,64 @@
             }
         }
 
+        /**
+         * Пересчитывает статусы дней НАЗАД от указанной даты (не включая её),
+         * восстанавливая цикл 2/2 на основе статуса этой даты и последующих дней.
+         */
+        function recalculateBackward(anchorDateStr) {
+            const anchorDate = parseDate(anchorDateStr);
+            const anchorStatus = dayStatuses[anchorDateStr];
+            if (!anchorStatus) return;
+
+            // Считаем длину серии вперёд от anchorDate (включая её)
+            let runLength = 1;
+            const checkDate = new Date(anchorDate);
+            const endLimit = parseDate(END_RECALC_STR);
+
+            while (true) {
+                checkDate.setDate(checkDate.getDate() + 1);
+                if (checkDate > endLimit) break;
+                const checkStr = formatDate(checkDate);
+                if (getStatus(checkStr) === anchorStatus) {
+                    runLength++;
+                } else {
+                    break;
+                }
+            }
+
+            let currentStatus = anchorStatus;
+            let daysLeft;
+            if (runLength >= 2) {
+                currentStatus = (currentStatus === WORK) ? REST : WORK;
+                daysLeft = 2;
+            } else {
+                daysLeft = 2 - runLength;
+            }
+
+            const cursor = new Date(anchorDate);
+            cursor.setDate(cursor.getDate() - 1);
+            const beginDate = parseDate(BEGIN_RECALC_STR);
+
+            while (cursor >= beginDate) {
+                const key = formatDate(cursor);
+                dayStatuses[key] = currentStatus;
+                daysLeft--;
+                if (daysLeft === 0) {
+                    currentStatus = (currentStatus === WORK) ? REST : WORK;
+                    daysLeft = 2;
+                }
+                cursor.setDate(cursor.getDate() - 1);
+            }
+        }
+
+        /**
+         * Выполняет двусторонний пересчёт: и вперёд, и назад от указанной даты.
+         */
+        function recalculateBothDirections(anchorDateStr) {
+            recalculateForward(anchorDateStr);
+            recalculateBackward(anchorDateStr);
+        }
+
         // ═══════════════════════════════════════════════════════════════
         // ОБРАБОТЧИК КЛИКА ПО ДНЮ
         // ═══════════════════════════════════════════════════════════════
@@ -702,15 +749,19 @@
 
             // Применяем изменение в памяти
             dayStatuses[dateStr] = newStatus;
-            recalculateAfterInMemory(dateStr);
+
+            // ДВУСТОРОННИЙ пересчёт
+            recalculateBothDirections(dateStr);
 
             // Перерисовываем календарь
             renderCalendar();
 
-            // Запускаем отложенное сохранение в Firebase
+            // Сохраняем в Firebase
             debouncedSave();
 
-            console.log(`👆 Клик: ${dateStr} → ${newStatus === WORK ? '👧 Рабочий' : '👦 Выходной'}`);
+            console.log(
+                `👆 Клик: ${dateStr} → ${newStatus === WORK ? '👧 Рабочий' : '👦 Выходной'} (пересчитано в обе стороны)`
+                );
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -811,16 +862,9 @@
         // ═══════════════════════════════════════════════════════════════
 
         async function resetAll() {
-            // Очищаем пользовательские переопределения
             userOverrides = {};
-
-            // Перестраиваем всё по базовому циклу
             rebuildFullStatuses();
-
-            // Перерисовываем
             renderCalendar();
-
-            // Сохраняем пустой объект в Firebase
             try {
                 setSyncStatus('syncing', 'Сброс...');
                 const overridesRef = ref(database, FIREBASE_PATH);
@@ -838,15 +882,11 @@
         // ═══════════════════════════════════════════════════════════════
 
         async function init() {
-            console.log('🚀 Инициализация календаря с Firebase...');
+            console.log('🚀 Инициализация календаря с Firebase (двусторонний пересчёт)...');
 
-            // 1. Загружаем переопределения из Firebase
             userOverrides = await loadOverridesFromFirebase();
-
-            // 2. Перестраиваем полный кэш статусов с учётом загруженных переопределений
             rebuildFullStatuses();
 
-            // 3. Устанавливаем текущий месяц
             const today = new Date();
             currentYear = today.getFullYear();
             currentMonth = today.getMonth();
@@ -857,21 +897,16 @@
                 currentMonth = 0;
             }
 
-            // 4. Первая отрисовка
             renderCalendar();
-
-            // 5. Отмечаем, что начальная загрузка завершена
             initialLoadComplete = true;
             setSyncStatus('synced', 'Готово');
 
-            // 6. Привязываем обработчики кнопок
             document.getElementById('prevMonthBtn').addEventListener('click', goToPrevMonth);
             document.getElementById('nextMonthBtn').addEventListener('click', goToNextMonth);
             document.getElementById('prevYearBtn').addEventListener('click', goToPrevYear);
             document.getElementById('nextYearBtn').addEventListener('click', goToNextYear);
             document.getElementById('resetBtn').addEventListener('click', resetAll);
 
-            // 7. Клавиатурная навигация
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'ArrowLeft') { e.preventDefault();
                     goToPrevMonth(); } else if (e.key === 'ArrowRight') { e.preventDefault();
@@ -880,16 +915,12 @@
                     goToNextYear(); }
             });
 
-            // 8. Слушаем изменения из Firebase в реальном времени (для синхронизации между вкладками)
             const overridesRef = ref(database, FIREBASE_PATH);
             onValue(overridesRef, (snapshot) => {
                 if (!initialLoadComplete) return;
-
                 const remoteData = snapshot.exists() ? snapshot.val() : {};
                 const remoteKeys = JSON.stringify(Object.keys(remoteData).sort());
                 const localKeys = JSON.stringify(Object.keys(userOverrides).sort());
-
-                // Если данные изменились извне (другая вкладка/устройство)
                 if (remoteKeys !== localKeys) {
                     console.log('🌐 Обнаружены изменения из Firebase. Синхронизируем...');
                     userOverrides = remoteData;
@@ -899,11 +930,10 @@
                 }
             });
 
-            console.log('✅ Календарь готов к работе!');
+            console.log('✅ Календарь готов! Двусторонний пересчёт активен.');
             console.log('📊 Загружено переопределений:', Object.keys(userOverrides).length);
         }
 
-        // Запуск приложения
         init();
     </script>
 </body>
